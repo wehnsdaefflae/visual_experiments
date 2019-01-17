@@ -1,7 +1,9 @@
 import math
-from typing import Tuple
+from typing import Tuple, Sequence
 
 import arcade
+
+from arcade.arcade_types import Color
 
 
 class Observer:
@@ -35,13 +37,42 @@ class Observer:
 
 
 class SoundSource:
-    def __init__(self, x: int, y: int):
-        self._x = x
-        self._y = y
-        self.size = 100
+    def __init__(self, x: int, y: int, no_components: int):
+        self._x = float(x)
+        self._y = float(y)
+        self.size = 100.
+        self._components = [1.] * no_components
 
-    def get_position(self) -> Tuple[int, int]:
+    def get_position(self) -> Tuple[float, float]:
         return self._x, self._y
+
+    def get_component(self, index: int):
+        return self._components[index]
+
+    def set_component(self, index: int, value: float):
+        self._components[index] = value
+
+
+def draw_arc_partitioned(x: float, y: float, size: float, start_angle: float, end_angle: float, tilt_angle: float, coloured_components: Sequence[Tuple[Color, float]]):
+    total_segment_sizes = sum(_x for _, _x in coloured_components)
+
+    last_angle = start_angle
+    for each_color, each_segment in coloured_components:
+        this_ratio = each_segment / total_segment_sizes
+
+        next_angle = last_angle + (end_angle - start_angle) * this_ratio
+        arcade.draw_arc_filled(
+            center_x=x,
+            center_y=y,
+            width=size,
+            height=size,
+            color=each_color,
+            start_angle=last_angle,
+            end_angle=next_angle,
+            tilt_angle=tilt_angle
+        )
+
+        last_angle = next_angle
 
 
 class Setting(arcade.Window):
@@ -55,10 +86,10 @@ class Setting(arcade.Window):
         self._margin = (self._width - self._walls[0]) // 2, (self._height - self._walls[1]) // 2
 
         self._sound_sources = (
-            SoundSource(*self._margin),
-            SoundSource(self._walls[0] + self._margin[0], self._margin[1]),
-            SoundSource(self._walls[0] + self._margin[0], self._walls[1] + self._margin[1]),
-            SoundSource(self._margin[0], self._walls[1] + self._margin[1]),
+            SoundSource(*self._margin, 4),
+            SoundSource(self._walls[0] + self._margin[0], self._margin[1], 4),
+            SoundSource(self._walls[0] + self._margin[0], self._walls[1] + self._margin[1], 4),
+            SoundSource(self._margin[0], self._walls[1] + self._margin[1], 4),
         )
 
     def map_pos(self, x: int, y: int) -> Tuple[int, int]:
@@ -73,9 +104,9 @@ class Setting(arcade.Window):
         colors = (25, 79, 77), (66, 31, 87), (131, 130, 41), (131, 81, 41)
 
         for _i, each_source in enumerate(self._sound_sources):
-            # arcade.draw_circle_outline(*each_source.get_position(), each_source.size, arcade.color.WHITE)
             x_source, y_source = each_source.get_position()
-            # arcade.draw_text(f"{x_source}, {y_source}", x_source, y_source, arcade.color.WHITE)
+            draw_arc_partitioned(x_source, y_source, each_source.size, 0., 90., 90. * _i, list(zip(colors, [each_source.get_component(_j) for _j in range(len(colors))])))
+            """
             arcade.draw_arc_filled(
                 center_x=x_source,
                 center_y=y_source,
@@ -86,6 +117,7 @@ class Setting(arcade.Window):
                 end_angle=90,
                 tilt_angle=90 * _i
             )
+            """
 
         arcade.draw_text(f"{str(self._observer.get_position())}", self._width // 2, 3, arcade.color.WHITE, 12)
 
@@ -108,6 +140,11 @@ class Setting(arcade.Window):
         self._observer.set_position(max(min(x, self._walls[0] + self._margin[0]), self._margin[0]), max(min(y, self._walls[1] + self._margin[1]), self._margin[1]))
 
         for each_source in self._sound_sources:
+            for _i, every_source in enumerate(self._sound_sources):
+                x_source, y_source = every_source.get_position()
+                distance = math.sqrt((x - x_source) ** 2. + (y - y_source) ** 2)
+                each_source.set_component(_i, distance + 1.)
+
             x_source, y_source = each_source.get_position()
             distance = math.sqrt((x - x_source) ** 2. + (y - y_source) ** 2)
             # each_source.size = math.sqrt(2 * 500. ** 2) - distance
