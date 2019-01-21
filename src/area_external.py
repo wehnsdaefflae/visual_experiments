@@ -128,11 +128,11 @@ class Setting(arcade.Window):
         y_new = max(min(y, self._walls[1] + self._margin[1]), self._margin[1])
         self._observer.set_position(x_new, y_new)
 
+        # inverted point: ratio is always the same
         for each_source in self._sound_sources:
             for _i, every_source in enumerate(self._sound_sources):
                 x_source, y_source = every_source.get_position()
                 distance = math.sqrt((x - x_source) ** 2. + (y - y_source) ** 2.)
-                # TODO: ratio is always the same?!
                 each_source.set_component(_i, distance + 1.)
 
             x_source, y_source = each_source.get_position()
@@ -174,27 +174,6 @@ class Setting(arcade.Window):
 
 def main():
     Setting()
-    arcade.run()
-
-
-def old_main():
-    # Set the background color to white
-    # For a list of named colors see
-    # http://arcade.academy/arcade.color.html
-    # Colors can also be specified in (red, green, blue) format and
-    # (red, green, blue, alpha) format.
-    arcade.set_background_color(arcade.color.BLACK)
-
-    # Start the render process. This must be done before any drawing commands.
-    arcade.start_render()
-
-    # Draw an rectangle outline
-    # arcade.draw_rectangle_outline(295, 100, 45, 65, arcade.color.GRAY, border_width=3, tilt_angle=45)
-    arcade.draw_rectangle_outline(300, 300, 500, 500, arcade.color.GRAY, border_width=3)
-
-    arcade.finish_render()
-
-    # Keep the window up until someone closes it.
     arcade.run()
 
 
