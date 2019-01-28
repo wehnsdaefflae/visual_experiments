@@ -196,10 +196,10 @@ class Environment(RenderObject):
     def observer_counterclockwise(self):
         self._observer.counterclockwise()
 
-    def observer_stop_horizontal(self):
+    def observer_stop_strafe(self):
         self._observer.stop_horizontal()
 
-    def observer_stop_vertical(self):
+    def observer_stop_walk(self):
         self._observer.stop_vertical()
 
     def observer_stop_rotation(self):
@@ -223,7 +223,7 @@ class Environment(RenderObject):
 class NormalizedWindow(arcade.Window):
     def __init__(self, title: str, width: int, height: int, render_objects: Sequence[RenderObject]):
         super().__init__(width, height, title=title)
-        self._scale = min(width, height) * .9
+        self._scale = min(width, height) * .8
         self._x_offset = (width - self._scale) / 2.
         self._y_offset = (height - self._scale) / 2.
         self._render_objects = render_objects
@@ -255,26 +255,26 @@ class InSideOut(NormalizedWindow):
             self._environment.observer_backward()
 
         elif symbol == 97:
-            self._environment.observer_strafe_left()
-
-        elif symbol == 100:
-            self._environment.observer_strafe_right()
-
-        elif symbol == 113:
             self._environment.observer_counterclockwise()
 
-        elif symbol == 101:
+        elif symbol == 100:
             self._environment.observer_clockwise()
+
+        elif symbol == 113:
+            self._environment.observer_strafe_left()
+
+        elif symbol == 101:
+            self._environment.observer_strafe_right()
 
     def on_key_release(self, symbol: int, modifiers: int):
         if symbol == 119 or symbol == 115:
-            self._environment.observer_stop_vertical()
+            self._environment.observer_stop_walk()
 
         elif symbol == 97 or symbol == 100:
-            self._environment.observer_stop_horizontal()
+            self._environment.observer_stop_rotation()
 
         elif symbol == 113 or symbol == 101:
-            self._environment.observer_stop_rotation()
+            self._environment.observer_stop_strafe()
 
         elif symbol == 114:
             self._environment.observer_reset()
