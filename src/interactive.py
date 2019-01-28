@@ -94,72 +94,96 @@ class Sink(RenderObject):
 class Observer(RenderObject):
     def __init__(self, identity: int, position: List[float], sources: Sequence[Source], no_sinks: int):
         width_sink = 360. / no_sinks
-        self.position = position
+        self._position = position
+        self._orientation = 0.
         sinks = tuple(
-            Sink(_i, self.position, _i * width_sink, width_sink, sources)
+            Sink(_i, self._position, _i * width_sink, width_sink, sources)
             for _i in range(no_sinks)
         )
         super().__init__(identity, parts=sinks)
         self._sources = sources
-        self.orientation = 0.
         self._speed_transition = .005
         self._speed_rotation = 2.
-        self.movement = [0., 0., 0.]
+        self._movement = [0., 0., 0.]
+        self._directions = {
+            "forward":  False,
+            "backward": False,
+            "left":     False,
+            "right":    False,
+
+        }
 
     # TODO: controls janky
-    def forward(self):
-        self.movement[0] = self._speed_transition * math.cos(self.orientation * math.pi / 180.)
-        self.movement[1] = self._speed_transition * math.sin(self.orientation * math.pi / 180.)
+    def move(self, movement: str):
+        self._directions[movement] = True
 
-    def strafe_right(self):
-        right = (self.orientation + 90.) % 360.
-        self.movement[0] = -self._speed_transition * math.cos(right * math.pi / 180.)
-        self.movement[1] = -self._speed_transition * math.sin(right * math.pi / 180.)
+    def stop(self, movement: str):
+        self._directions[movement] = False
 
-    def backward(self):
-        self.movement[0] = -self._speed_transition * math.cos(self.orientation * math.pi / 180.)
-        self.movement[1] = -self._speed_transition * math.sin(self.orientation * math.pi / 180.)
+    def reset(self):
+        for _k in self._directions:
+            self._directions[_k] = False
 
-    def strafe_left(self):
-        right = (self.orientation + 90.) % 360.
-        self.movement[0] = self._speed_transition * math.cos(right * math.pi / 180.)
-        self.movement[1] = self._speed_transition * math.sin(right * math.pi / 180.)
+        for _i in range(len(self._movement)):
+            self._movement[_i] = 0.
 
-    def clockwise(self):
-        self.movement[2] = -self._speed_rotation
+        self._position[0] = .5
+        self._position[1] = .5
+        self._orientation = 0.
 
-    def counterclockwise(self):
-        self.movement[2] = self._speed_rotation
+    def _forward(self):
+        self._movement[0] = self._speed_transition * math.cos(self._orientation * math.pi / 180.)
+        self._movement[1] = self._speed_transition * math.sin(self._orientation * math.pi / 180.)
 
-    def stop_horizontal(self):
-        self.movement[0] = 0.
-        self.movement[1] = 0.
+    def _backward(self):
+        self._movement[0] = -self._speed_transition * math.cos(self._orientation * math.pi / 180.)
+        self._movement[1] = -self._speed_transition * math.sin(self._orientation * math.pi / 180.)
 
-    def stop_vertical(self):
-        self.movement[0] = 0.
-        self.movement[1] = 0.
+    def _clockwise(self):
+        self._movement[2] = -self._speed_rotation
 
-    def stop_rotation(self):
-        self.movement[2] = 0.
+    def _counterclockwise(self):
+        self._movement[2] = self._speed_rotation
+
+    def _stop_vertical(self):
+        self._movement[0] = 0.
+        self._movement[1] = 0.
+
+    def _stop_rotation(self):
+        self._movement[2] = 0.
 
     def _update(self):
-        self.position[0] += self.movement[0]
-        self.position[1] += self.movement[1]
-        self.orientation = (self.orientation + self.movement[2]) % 360.
+        if self._directions.get("forward", False):
+            self._forward()
+        elif self._directions.get("backward", False):
+            self._backward()
+        else:
+            self._stop_vertical()
+
+        if self._directions.get("left", False):
+            self._counterclockwise()
+        elif self._directions.get("right", False):
+            self._clockwise()
+        else:
+            self._stop_rotation()
+
+        self._position[0] += self._movement[0]
+        self._position[1] += self._movement[1]
+        self._orientation = (self._orientation + self._movement[2]) % 360.
 
         for each_sink in self._parts:
-            each_sink.position = self.position
-            each_sink.orientation = (each_sink.orientation_offset + self.orientation) % 360.
+            each_sink.position = self._position
+            each_sink.orientation = (each_sink.orientation_offset + self._orientation) % 360.
 
     def _render(self, scale: float, x_offset: float, y_offset: float):
-        x = self.position[0] * scale + x_offset
-        y = self.position[1] * scale + y_offset
+        x = self._position[0] * scale + x_offset
+        y = self._position[1] * scale + y_offset
         arcade.draw_circle_filled(x, y, 5., arcade.color.WHITE)
-        x_dir = x + 10. * math.cos(self.orientation * math.pi / 180.)
-        y_dir = y + 10. * math.sin(self.orientation * math.pi / 180.)
+        x_dir = x + 10. * math.cos(self._orientation * math.pi / 180.)
+        y_dir = y + 10. * math.sin(self._orientation * math.pi / 180.)
         arcade.draw_circle_filled(x_dir, y_dir, 2., arcade.color.WHITE)
         # arcade.draw_text(f"{self.orientation:.0f}", x, y - 15., arcade.color.WHITE)
-        arcade.draw_text(f"{str(self.position)}", 20., 20., arcade.color.WHITE)
+        arcade.draw_text(f"{str(self._position)}", 20., 20., arcade.color.WHITE)
 
 
 class Environment(RenderObject):
@@ -179,35 +203,27 @@ class Environment(RenderObject):
         self._top_right = 1., 1.
 
     def observer_forward(self):
-        self._observer.forward()
+        self._observer.move("forward")
 
     def observer_backward(self):
-        self._observer.backward()
-
-    def observer_strafe_left(self):
-        self._observer.strafe_left()
-
-    def observer_strafe_right(self):
-        self._observer.strafe_right()
+        self._observer.move("backward")
 
     def observer_clockwise(self):
-        self._observer.clockwise()
+        self._observer.move("right")
 
     def observer_counterclockwise(self):
-        self._observer.counterclockwise()
-
-    def observer_stop_strafe(self):
-        self._observer.stop_horizontal()
+        self._observer.move("left")
 
     def observer_stop_walk(self):
-        self._observer.stop_vertical()
+        self._observer.stop("forward")
+        self._observer.stop("backward")
 
     def observer_stop_rotation(self):
-        self._observer.stop_rotation()
+        self._observer.stop("left")
+        self._observer.stop("right")
 
     def observer_reset(self):
-        self._observer.position[0] = .5
-        self._observer.position[1] = .5
+        self._observer.reset()
 
     def _update(self):
         pass
@@ -247,34 +263,24 @@ class InSideOut(NormalizedWindow):
         super().__init__("in side out", 800, 800, objects)
 
     def on_key_press(self, symbol: int, modifiers: int):
-        # http://arcade.academy/arcade.key.html
-        if symbol == 119:
+        if symbol == arcade.key.W:
             self._environment.observer_forward()
 
-        elif symbol == 115:
+        elif symbol == arcade.key.S:
             self._environment.observer_backward()
 
-        elif symbol == 97:
+        elif symbol == arcade.key.A:
             self._environment.observer_counterclockwise()
 
-        elif symbol == 100:
+        elif symbol == arcade.key.D:
             self._environment.observer_clockwise()
 
-        elif symbol == 113:
-            self._environment.observer_strafe_left()
-
-        elif symbol == 101:
-            self._environment.observer_strafe_right()
-
     def on_key_release(self, symbol: int, modifiers: int):
-        if symbol == 119 or symbol == 115:
+        if symbol == arcade.key.W or symbol == arcade.key.S:
             self._environment.observer_stop_walk()
 
-        elif symbol == 97 or symbol == 100:
+        elif symbol == arcade.key.A or symbol == arcade.key.D:
             self._environment.observer_stop_rotation()
-
-        elif symbol == 113 or symbol == 101:
-            self._environment.observer_stop_strafe()
 
         elif symbol == 114:
             self._environment.observer_reset()
