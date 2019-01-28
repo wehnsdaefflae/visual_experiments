@@ -100,9 +100,9 @@ class Sink(RenderObject):
                 linear_distance = distance(sink_placement[:2], source_placement[:2])
                 each_volume = (math.sqrt(2.) - linear_distance) * (1. - angle_difference / 180.)
                 self._components.append(each_volume)
-                # print(f"sink {hash(self):d} ({str(sink_placement[:2]):s}) to source {_i:d} ({str(source_placement[:2]):s}): {linear_distance:06.2f}")
+                # todo: angle difference all messed up
+                print(f"{hash(each_source)}: {angle_difference:6.2f}")
 
-            # print(sum(self._components))
             self._colors.clear()
             for each_source, _ in self._sources:
                 each_color_hsv = distribute_circular(hash(each_source)), .67, .67
@@ -222,7 +222,7 @@ class Source(RenderObject):
         arcade.draw_circle_filled(x_pixel, y_pixel, size, color_rgb)
         arcade.draw_circle_outline(x_pixel, y_pixel, size, (178, 132, 190, 255 // 2), border_width=3)
 
-        # arcade.draw_text(f"{hash(self):d}", x, y, (255, 255, 255))
+        arcade.draw_text(f"{hash(self):d}", x_pixel, y_pixel, (255, 255, 255))
 
 
 class Environment(RenderObject):
@@ -275,9 +275,10 @@ class Environment(RenderObject):
             self._observer_commands.discard("turn_right")
 
         if (arcade.key.R, 0) in pressed_keys:
-            self._observer_commands.add("reset")
-        else:
-            self._observer_commands.discard("reset")
+            observer_placement[0] = .0
+            observer_placement[1] = .0
+            observer_placement[2] = .0
+            observer_placement[3] = 1.
 
         return {
             hash(observer_object): {
@@ -299,6 +300,7 @@ class NormalizedWindow(arcade.Window):
 
         self._orientation = 0.
         self._scale = 1.
+        # TODO: scale doesn't work
 
         self._main_object = main_object
         self._pressed_keys = set()
