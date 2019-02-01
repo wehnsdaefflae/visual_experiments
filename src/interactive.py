@@ -1,7 +1,9 @@
 from __future__ import annotations
 import colorsys
+import itertools
 import math
-from typing import List, Optional, Sequence, Tuple, Dict, Any, TypeVar
+import random
+from typing import List, Optional, Sequence, Tuple, Dict, Any, TypeVar, Set
 
 import arcade
 
@@ -42,10 +44,10 @@ class NormalizationSquare:
 
 
 class RenderObject:
-    def __init__(self, identity: int, normalize: NormalizationSquare, parts: Optional[Sequence[Tuple[RenderObject, List[float]]]] = None):
+    def __init__(self, identity: int, normalize: NormalizationSquare, parts: Optional[Dict[str, List[Tuple[RenderObject, List[float]]]]] = None):
         self._id = identity
         self._normalize = normalize
-        self._parts = [] if parts is None else parts
+        self._parts = dict() if parts is None else parts
 
     def __hash__(self):
         return self._id
@@ -55,7 +57,7 @@ class RenderObject:
 
     def update_complete(self, kwargs_self: Optional[Dict[str, Any]] = None):
         kwargs_parts = self._update_self(kwargs_self)
-        for each_part, _ in self._parts:
+        for each_part, _ in itertools.chain(*self._parts.values()):
             hash_part = hash(each_part)
             each_part.update_complete(kwargs_parts.get(hash_part, None))
 
@@ -63,7 +65,7 @@ class RenderObject:
         raise NotImplementedError()
 
     def render_complete(self, x_absolute: float, y_absolute: float, orientation_absolute: float = 0., scale: float = 1.):
-        for each_part, placement in self._parts:
+        for each_part, placement in itertools.chain(*self._parts.values()):
             x_relative, y_relative, orientation_relative, scale_relative = placement
 
             x_new = x_absolute + x_relative
@@ -88,20 +90,18 @@ class Sink(RenderObject):
     def _update_self(self, kwargs_self: Optional[Dict[str, Any]]) -> Optional[Dict[int, Dict[str, Any]]]:
         if kwargs_self is not None:
             sink_placement = kwargs_self["sink_placement"]
-            observer_placement = kwargs_self["observer_placement"]
 
             self._components.clear()
             for _i, (each_source, source_placement) in enumerate(self._sources):
                 x_delta = source_placement[0] - sink_placement[0]
                 y_delta = source_placement[1] - sink_placement[1]
                 source_angle = math.atan2(y_delta, x_delta) * 180. / math.pi
-                sink_orientation = (observer_placement[2] + sink_placement[2] + self._width / 2.) % 360.
+                sink_orientation = sink_placement[2] + self._width / 2.
                 angle_difference = abs((source_angle - sink_orientation + 180.) % 360. - 180.)
+
                 linear_distance = distance(sink_placement[:2], source_placement[:2])
                 each_volume = (math.sqrt(2.) - linear_distance) * (1. - angle_difference / 180.)
                 self._components.append(each_volume)
-                # todo: angle difference all messed up
-                print(f"{hash(each_source)}: {angle_difference:6.2f}")
 
             self._colors.clear()
             for each_source, _ in self._sources:
@@ -123,14 +123,14 @@ class Sink(RenderObject):
 class Observer(RenderObject):
     def __init__(self, identity: int, sources: Sequence[Tuple[Source, List[float]]], no_sinks: int, normalize: NormalizationSquare):
         width_sink = 360. / no_sinks
-        sinks = tuple(
+        self._sinks = [
             (
                 Sink(_i, width_sink, sources, normalize),
                 [0., 0., _i * width_sink, 1.]
             )
             for _i in range(no_sinks)
-        )
-        super().__init__(identity, normalize, parts=sinks)
+        ]
+        super().__init__(identity, normalize, parts={"sinks": self._sinks})
         self._speed_transition = .005
         self._speed_rotation = 2.
 
@@ -166,7 +166,7 @@ class Observer(RenderObject):
             self._change_placement[2] = 0.
 
         update_data = dict()
-        for each_sink, sink_placement_relative in self._parts:
+        for each_sink, sink_placement_relative in self._sinks:
             sink_placement_absolute = [
                 observer_placement[0] + sink_placement_relative[0],
                 observer_placement[1] + sink_placement_relative[1],
@@ -174,7 +174,6 @@ class Observer(RenderObject):
                 observer_placement[3] * sink_placement_relative[3],
             ]
             each_update = {
-                "observer_placement":   observer_placement,
                 "sink_placement":       sink_placement_absolute,
             }
             update_data[hash(each_sink)] = each_update
@@ -200,14 +199,11 @@ class Observer(RenderObject):
     def get_movement(self) -> Tuple[float, ...]:
         return tuple(self._change_placement)
 
-    def get_sinks(self) -> Tuple[Sink, ...]:
-        return tuple(self._parts)
-
 
 class Source(RenderObject):
     def __init__(self, identity: int, volume: float, normalize: NormalizationSquare):
         super().__init__(identity, normalize)
-        self._volume = volume
+        self.volume = volume
 
     def _update_self(self, kwargs_self: Optional[Dict[str, Any]]) -> Optional[Dict[int, Dict[str, Any]]]:
         # TODO: change volume and channel ratio
@@ -215,33 +211,35 @@ class Source(RenderObject):
 
     def _render_self(self, x_absolute: float, y_absolute: float, orientation_absolute: float, scale: float):
         x_pixel, y_pixel = self._normalize.rescale(x_absolute, y_absolute)
-        size = self._normalize.rescale_scalar(self._volume) * scale
+        size = self._normalize.rescale_scalar(self.volume) * scale
         color_hsv = distribute_circular(self._id), .67, .67
-        color_rgb = [round(_x * 255.) for _x in colorsys.hsv_to_rgb(*color_hsv)] + [127]
+        color_rgb = [round(_x * 255.) for _x in colorsys.hsv_to_rgb(*color_hsv)]
 
-        arcade.draw_circle_filled(x_pixel, y_pixel, size, color_rgb)
-        arcade.draw_circle_outline(x_pixel, y_pixel, size, (178, 132, 190, 255 // 2), border_width=3)
+        arcade.draw_circle_filled(x_pixel, y_pixel, size, color_rgb + [127])
+        arcade.draw_circle_outline(x_pixel, y_pixel, size, color_rgb, border_width=3)
 
-        arcade.draw_text(f"{hash(self):d}", x_pixel, y_pixel, (255, 255, 255))
+        arcade.draw_text(f"{hash(self):d}", x_pixel, y_pixel, (255, 255, 255), font_size=12)
 
 
 class Environment(RenderObject):
     def __init__(self, identity: int, normalize: NormalizationSquare):
-        self._x_min, self._x_max = -.5, +.5
-        self._y_min, self._y_max = -.5, +.5
-        sources = [
-            (Source(0, .05, normalize), [self._x_min, self._y_min, 0., 1.]),
-            (Source(1, .05, normalize), [self._x_max, self._y_min, 0., 1.]),
-            (Source(2, .05, normalize), [self._x_min, self._y_max, 0., 1.]),
-            (Source(3, .05, normalize), [self._x_max, self._y_max, 0., 1.]),
+        self._was_pressed = False
+        self._x_min, self._x_max = .0, 1.
+        self._y_min, self._y_max = .0, 1.
+        self._sources = [
+            (Source(_i, .05, normalize), [random.uniform(self._x_min, self._x_max), random.uniform(self._y_min, self._y_max), 0., 1.])
+            for _i in range(4)
         ]
-        self._observer = Observer(0, sources, 8, normalize), [.0, .0, .0, 1.]
+        self._source_count = len(self._sources)
+        self._observers = [
+            (Observer(0, self._sources, 8, normalize), [(self._x_max - self._x_min) / 2., (self._y_max - self._y_min) / 2., .0, 1.]),
+        ]
 
-        super().__init__(identity, normalize, parts=sources + [self._observer])
+        super().__init__(identity, normalize, parts={"sources": self._sources, "observers": self._observers})
         self._observer_commands = set()
 
     def _update_self(self, kwargs_self: Optional[Dict[str, Any]]) -> Optional[Dict[int, Dict[str, Any]]]:
-        observer_object, observer_placement = self._observer
+        observer_object, observer_placement = self._observers[0]
         movement = observer_object.get_movement()
         observer_placement[0] = max(self._x_min, min(self._x_max, observer_placement[0] + movement[0]))
         observer_placement[1] = max(self._y_min, min(self._y_max, observer_placement[1] + movement[1]))
@@ -249,12 +247,48 @@ class Environment(RenderObject):
         observer_placement[3] *= movement[3]
 
         pressed_keys = kwargs_self.get("pressed_keys", set())
+        self._keyboard_interaction(observer_placement, pressed_keys)
 
-        if (arcade.key.UP, 0) in pressed_keys:
+        pressed_buttons = kwargs_self.get("pressed_buttons", dict())
+        self._mouse_interaction(pressed_buttons)
+
+        return {
+            hash(observer_object): {
+                "observer_commands": self._observer_commands,
+                "observer_placement": observer_placement,
+            },
+        }
+
+    def _mouse_interaction(self, pressed_buttons: Dict[int, List[float]]):
+        state_button_01 = pressed_buttons.get(1)
+        is_pressed, x, y, modifiers = state_button_01
+
+        remove_source = None
+        if self._was_pressed and not is_pressed:
+            print(f"x: {x:.4f}, y: {y:.4f}")
+            for each_source, each_placement in self._sources:
+                d = distance(each_placement[:2], (x, y))
+                if d < each_source.volume:
+                    remove_source = each_source, each_placement
+                    break
+            else:
+                source_object = Source(self._source_count, .05, self._normalize)
+                source_placement = [x, y, 0., 1.]
+                source = source_object, source_placement
+                self._sources.append(source)
+                self._source_count += 1
+
+            if remove_source is not None:
+                self._sources.remove(remove_source)
+
+        self._was_pressed = is_pressed
+
+    def _keyboard_interaction(self, observer_placement: List[float], pressed_keys: Set[Tuple[int, int]]):
+        if (arcade.key.W, 0) in pressed_keys:
             self._observer_commands.add("move_forward")
             self._observer_commands.discard("move_backward")
 
-        elif (arcade.key.DOWN, 0) in pressed_keys:
+        elif (arcade.key.S, 0) in pressed_keys:
             self._observer_commands.discard("move_forward")
             self._observer_commands.add("move_backward")
 
@@ -262,11 +296,11 @@ class Environment(RenderObject):
             self._observer_commands.discard("move_forward")
             self._observer_commands.discard("move_backward")
 
-        if (arcade.key.LEFT, 0) in pressed_keys:
+        if (arcade.key.A, 0) in pressed_keys:
             self._observer_commands.add("turn_left")
             self._observer_commands.discard("turn_right")
 
-        elif (arcade.key.RIGHT, 0) in pressed_keys:
+        elif (arcade.key.D, 0) in pressed_keys:
             self._observer_commands.discard("turn_left")
             self._observer_commands.add("turn_right")
 
@@ -280,16 +314,9 @@ class Environment(RenderObject):
             observer_placement[2] = .0
             observer_placement[3] = 1.
 
-        return {
-            hash(observer_object): {
-                "observer_commands": self._observer_commands,
-                "observer_placement": observer_placement,
-            },
-        }
-
     def _render_self(self, x_absolute: float, y_absolute: float, orientation_absolute: float, scale: float):
         width, height = self._normalize.rescale(1., 1.)
-        x, y = self._normalize.rescale(x_absolute, y_absolute)
+        x, y = self._normalize.rescale(x_absolute + .5, y_absolute + .5)
         arcade.draw_rectangle_outline(x, y, width, height, arcade.color.GRAY, border_width=3)
 
 
@@ -304,10 +331,29 @@ class NormalizedWindow(arcade.Window):
 
         self._main_object = main_object
         self._pressed_keys = set()
-        self._update_information = {"pressed_keys": self._pressed_keys}
+        self._pressed_buttons = {
+            _i: [False, 0., 0., 0]
+            for _i in range(10)
+        }
+        self._update_information = {
+            "pressed_keys": self._pressed_keys,
+            "pressed_buttons": self._pressed_buttons,
+        }
 
     def update(self, delta: float):
         self._main_object.update_complete(kwargs_self=self._update_information)
+
+    def on_mouse_press(self, x: float, y: float, button: int, modifiers: int):
+        mouse_state = self._pressed_buttons[button]
+        mouse_state[0] = True
+        mouse_state[1:3] = self._normalize.normalize(x, y)
+        mouse_state[3] = modifiers
+
+    def on_mouse_release(self, x: float, y: float, button: int, modifiers: int):
+        mouse_state = self._pressed_buttons[button]
+        mouse_state[0] = False
+        mouse_state[1:3] = self._normalize.normalize(x, y)
+        mouse_state[3] = modifiers
 
     def on_key_press(self, symbol: int, modifiers: int):
         keys = symbol, modifiers
@@ -319,7 +365,7 @@ class NormalizedWindow(arcade.Window):
 
     def on_draw(self):
         arcade.start_render()
-        self._main_object.render_complete(.5, .5, orientation_absolute=self._orientation, scale=self._scale)
+        self._main_object.render_complete(.0, .0, orientation_absolute=self._orientation, scale=self._scale)
 
 
 class InSideOut(NormalizedWindow):
@@ -330,7 +376,10 @@ class InSideOut(NormalizedWindow):
         super().__init__("in side out", int(width), int(height), Environment(0, normalizer))
 
 
+# todo: remove general update, replace by class-specific setters
 def main():
+    random.seed(2346232457)
+
     InSideOut()
     arcade.run()
 
