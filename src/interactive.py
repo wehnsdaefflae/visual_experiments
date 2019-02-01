@@ -11,7 +11,7 @@ from src.tools import distribute_circular, distance, draw_arc_partitioned
 
 
 OBJECT_PLACED = TypeVar("OBJECT_PLACED")
-PLACEMENT = List[float]                             # todo: placement is wrong name. x, y, orientation, scale
+PLACEMENT = List[float]
 OBJECT_PLACEMENT = Tuple[OBJECT_PLACED, PLACEMENT]
 
 
@@ -135,8 +135,8 @@ class Observer(RenderObject):
             for _i in range(no_sinks)
         ]
         super().__init__(normalize, parts={"sinks": self._sinks})
-        self._speed_transition = .005
-        self._speed_rotation = 2.
+        self._speed_transition = .0035
+        self._speed_rotation = 1.75
 
         self._change_placement = [0., 0., 0., 1.]
 
@@ -200,10 +200,6 @@ class Observer(RenderObject):
         arcade.draw_circle_filled(x_pixel, y_pixel, self._normalize.rescale_scalar(.005) * scale, arcade.color.WHITE)
         arcade.draw_circle_filled(x_dir, y_dir, self._normalize.rescale_scalar(.0025) * scale, arcade.color.WHITE)
 
-        # arcade.draw_text(f"{orientation:.0f}", x, y - 15., arcade.color.WHITE)
-        # arcade.draw_text(f"{str((x_dir, y_dir))}", 20., 40., arcade.color.WHITE)
-        # arcade.draw_text(f"{str((x_pixel, y_pixel))}", 20., 20., arcade.color.WHITE)
-
     def reset(self):
         for _i in range(len(self._change_placement)):
             self._change_placement[_i] = 0.
@@ -231,20 +227,18 @@ class Source(RenderObject):
         arcade.draw_circle_filled(x_pixel, y_pixel, size, color_rgb + [255 // (1 + int(self._faded))])
         arcade.draw_circle_outline(x_pixel, y_pixel, size, color_rgb, border_width=3)
 
-        arcade.draw_text(f"{hash(self):d}", x_pixel, y_pixel, (255, 255, 255), font_size=12)
-
 
 class Environment(RenderObject):
-    def __init__(self, normalize: NormalizationSquare):
+    def __init__(self, normalize: NormalizationSquare, initial_sources: int = 0):
         self._was_pressed = False
         self._x_min, self._x_max = .0, 1.
         self._y_min, self._y_max = .0, 1.
         self._virtual_sources = [
             (Source(.05, normalize, faded=True), [random.uniform(self._x_min, self._x_max), random.uniform(self._y_min, self._y_max), 0., 1.])
-            for _i in range(4)
+            for _i in range(initial_sources)
         ]
         self._observers = [
-            (Observer(self._virtual_sources, 2, normalize), [(self._x_max - self._x_min) / 2., (self._y_max - self._y_min) / 2., 90., 1.]),
+            (Observer(self._virtual_sources, 8, normalize), [(self._x_max - self._x_min) / 2., (self._y_max - self._y_min) / 2., 90., 1.]),
         ]
         self._real_sources = [
             (Sink(90., self._virtual_sources, normalize), [self._x_min, self._y_min, 0., 1.]),
