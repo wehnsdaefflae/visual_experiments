@@ -44,8 +44,11 @@ class NormalizationSquare:
 
 
 class RenderObject:
-    def __init__(self, identity: int, normalize: NormalizationSquare, parts: Optional[Dict[str, List[Tuple[RenderObject, List[float]]]]] = None):
-        self._id = identity
+    next_id = 0
+
+    def __init__(self, normalize: NormalizationSquare, parts: Optional[Dict[str, List[Tuple[RenderObject, List[float]]]]] = None):
+        self._id = RenderObject.next_id
+        RenderObject.next_id += 1
         self._normalize = normalize
         self._parts = dict() if parts is None else parts
 
@@ -79,11 +82,12 @@ class RenderObject:
 
 
 class Sink(RenderObject):
-    def __init__(self, identity: int, width: float, sources: Sequence[Tuple[Source, List[float]]], normalize: NormalizationSquare):
-        super().__init__(identity, normalize)
+    def __init__(self, width: float, sources: Sequence[Tuple[Source, List[float]]], normalize: NormalizationSquare, faded: bool = False):
+        super().__init__(normalize)
         self._width = width
         self._sources = sources
 
+        self._faded = faded
         self._components = []
         self._colors = []
 
@@ -106,7 +110,7 @@ class Sink(RenderObject):
             self._colors.clear()
             for each_source, _ in self._sources:
                 each_color_hsv = distribute_circular(hash(each_source)), .67, .67
-                color_rgb = [round(_x * 255.) for _x in colorsys.hsv_to_rgb(*each_color_hsv)] + [127]
+                color_rgb = [round(_x * 255.) for _x in colorsys.hsv_to_rgb(*each_color_hsv)] + [255 // (1 + int(self._faded))]
                 self._colors.append(color_rgb)
 
         return None
@@ -117,20 +121,20 @@ class Sink(RenderObject):
         color_components = list(zip(self._colors, self._components))
 
         draw_arc_partitioned(x_pixel, y_pixel, size, 0., self._width, orientation_absolute, color_components)
-        arcade.draw_arc_outline(x_pixel, y_pixel, size, size, (196, 98, 16, 255 // 2), 0., self._width, border_width=3, tilt_angle=orientation_absolute)
+        arcade.draw_arc_outline(x_pixel, y_pixel, size, size, (196, 98, 16, 255), 0., self._width, border_width=3, tilt_angle=orientation_absolute)
 
 
 class Observer(RenderObject):
-    def __init__(self, identity: int, sources: Sequence[Tuple[Source, List[float]]], no_sinks: int, normalize: NormalizationSquare):
+    def __init__(self, sources: Sequence[Tuple[Source, List[float]]], no_sinks: int, normalize: NormalizationSquare):
         width_sink = 360. / no_sinks
         self._sinks = [
             (
-                Sink(_i, width_sink, sources, normalize),
+                Sink(width_sink, sources, normalize, faded=True),
                 [0., 0., _i * width_sink, 1.]
             )
             for _i in range(no_sinks)
         ]
-        super().__init__(identity, normalize, parts={"sinks": self._sinks})
+        super().__init__(normalize, parts={"sinks": self._sinks})
         self._speed_transition = .005
         self._speed_rotation = 2.
 
@@ -164,6 +168,14 @@ class Observer(RenderObject):
 
         else:
             self._change_placement[2] = 0.
+
+        if "strafe_left" in observer_commands:
+            self._change_placement[0] += self._speed_transition * math.cos(((observer_orientation + 90.) % 360.) * math.pi / 180.)
+            self._change_placement[1] += self._speed_transition * math.sin(((observer_orientation + 90.) % 360.) * math.pi / 180.)
+
+        elif "strafe_right" in observer_commands:
+            self._change_placement[0] -= self._speed_transition * math.cos(((observer_orientation + 90.) % 360.) * math.pi / 180.)
+            self._change_placement[1] -= self._speed_transition * math.sin(((observer_orientation + 90.) % 360.) * math.pi / 180.)
 
         update_data = dict()
         for each_sink, sink_placement_relative in self._sinks:
@@ -201,9 +213,10 @@ class Observer(RenderObject):
 
 
 class Source(RenderObject):
-    def __init__(self, identity: int, volume: float, normalize: NormalizationSquare):
-        super().__init__(identity, normalize)
+    def __init__(self, volume: float, normalize: NormalizationSquare, faded: bool = False):
+        super().__init__(normalize)
         self.volume = volume
+        self._faded = faded
 
     def _update_self(self, kwargs_self: Optional[Dict[str, Any]]) -> Optional[Dict[int, Dict[str, Any]]]:
         # TODO: change volume and channel ratio
@@ -215,27 +228,32 @@ class Source(RenderObject):
         color_hsv = distribute_circular(self._id), .67, .67
         color_rgb = [round(_x * 255.) for _x in colorsys.hsv_to_rgb(*color_hsv)]
 
-        arcade.draw_circle_filled(x_pixel, y_pixel, size, color_rgb + [127])
+        arcade.draw_circle_filled(x_pixel, y_pixel, size, color_rgb + [255 // (1 + int(self._faded))])
         arcade.draw_circle_outline(x_pixel, y_pixel, size, color_rgb, border_width=3)
 
         arcade.draw_text(f"{hash(self):d}", x_pixel, y_pixel, (255, 255, 255), font_size=12)
 
 
 class Environment(RenderObject):
-    def __init__(self, identity: int, normalize: NormalizationSquare):
+    def __init__(self, normalize: NormalizationSquare):
         self._was_pressed = False
         self._x_min, self._x_max = .0, 1.
         self._y_min, self._y_max = .0, 1.
-        self._sources = [
-            (Source(_i, .05, normalize), [random.uniform(self._x_min, self._x_max), random.uniform(self._y_min, self._y_max), 0., 1.])
+        self._virtual_sources = [
+            (Source(.05, normalize, faded=True), [random.uniform(self._x_min, self._x_max), random.uniform(self._y_min, self._y_max), 0., 1.])
             for _i in range(4)
         ]
-        self._source_count = len(self._sources)
         self._observers = [
-            (Observer(0, self._sources, 8, normalize), [(self._x_max - self._x_min) / 2., (self._y_max - self._y_min) / 2., .0, 1.]),
+            (Observer(self._virtual_sources, 2, normalize), [(self._x_max - self._x_min) / 2., (self._y_max - self._y_min) / 2., 90., 1.]),
+        ]
+        self._real_sources = [
+            (Sink(90., self._virtual_sources, normalize), [self._x_min, self._y_min, 0., 1.]),
+            (Sink(90., self._virtual_sources, normalize), [self._x_max, self._y_min, 90., 1.]),
+            (Sink(90., self._virtual_sources, normalize), [self._x_max, self._y_max, 180., 1.]),
+            (Sink(90., self._virtual_sources, normalize), [self._x_min, self._y_max, 270., 1.]),
         ]
 
-        super().__init__(identity, normalize, parts={"sources": self._sources, "observers": self._observers})
+        super().__init__(normalize, parts={"virtual_sources": self._virtual_sources, "observers": self._observers, "real_sources": self._real_sources})
         self._observer_commands = set()
 
     def _update_self(self, kwargs_self: Optional[Dict[str, Any]]) -> Optional[Dict[int, Dict[str, Any]]]:
@@ -252,12 +270,29 @@ class Environment(RenderObject):
         pressed_buttons = kwargs_self.get("pressed_buttons", dict())
         self._mouse_interaction(pressed_buttons)
 
-        return {
-            hash(observer_object): {
-                "observer_commands": self._observer_commands,
-                "observer_placement": observer_placement,
-            },
+        parameters = {
+            hash(_sink_object): {
+                # "sink_placement": observer_placement,
+                "sink_placement": [
+                    observer_placement[0],
+                    observer_placement[1],
+                    (90. * (_i + 2.)) % 360.,
+                    observer_placement[3]
+                ],
+            }
+            for _i, (_sink_object, _sink_placement) in enumerate(self._real_sources)
         }
+
+        parameters.update(
+            {
+                hash(observer_object): {
+                    "observer_commands": self._observer_commands,
+                    "observer_placement": observer_placement,
+                },
+            }
+        )
+
+        return parameters
 
     def _mouse_interaction(self, pressed_buttons: Dict[int, List[float]]):
         state_button_01 = pressed_buttons.get(1)
@@ -266,20 +301,19 @@ class Environment(RenderObject):
         remove_source = None
         if self._was_pressed and not is_pressed:
             print(f"x: {x:.4f}, y: {y:.4f}")
-            for each_source, each_placement in self._sources:
+            for each_source, each_placement in self._virtual_sources:
                 d = distance(each_placement[:2], (x, y))
                 if d < each_source.volume:
                     remove_source = each_source, each_placement
                     break
             else:
-                source_object = Source(self._source_count, .05, self._normalize)
+                source_object = Source(.05, self._normalize, faded=True)
                 source_placement = [x, y, 0., 1.]
                 source = source_object, source_placement
-                self._sources.append(source)
-                self._source_count += 1
+                self._virtual_sources.append(source)
 
             if remove_source is not None:
-                self._sources.remove(remove_source)
+                self._virtual_sources.remove(remove_source)
 
         self._was_pressed = is_pressed
 
@@ -308,10 +342,22 @@ class Environment(RenderObject):
             self._observer_commands.discard("turn_left")
             self._observer_commands.discard("turn_right")
 
+        if (arcade.key.Q, 0) in pressed_keys:
+            self._observer_commands.add("strafe_left")
+            self._observer_commands.discard("strafe_right")
+
+        elif (arcade.key.E, 0) in pressed_keys:
+            self._observer_commands.discard("strafe_left")
+            self._observer_commands.add("strafe_right")
+
+        else:
+            self._observer_commands.discard("strafe_left")
+            self._observer_commands.discard("strafe_right")
+
         if (arcade.key.R, 0) in pressed_keys:
-            observer_placement[0] = .0
-            observer_placement[1] = .0
-            observer_placement[2] = .0
+            observer_placement[0] = .5
+            observer_placement[1] = .5
+            observer_placement[2] = 90.
             observer_placement[3] = 1.
 
     def _render_self(self, x_absolute: float, y_absolute: float, orientation_absolute: float, scale: float):
@@ -373,7 +419,7 @@ class InSideOut(NormalizedWindow):
         width = 800.
         height = 800.
         normalizer = NormalizationSquare(0., width, 0., height)
-        super().__init__("in side out", int(width), int(height), Environment(0, normalizer))
+        super().__init__("in side out", int(width), int(height), Environment(normalizer))
 
 
 # todo: remove general update, replace by class-specific setters
