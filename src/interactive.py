@@ -120,7 +120,7 @@ class Sink(RenderObject):
         size = self._normalize.rescale_scalar(sum(self._components) * scale / 20.)
         color_components = list(zip(self._colors, self._components))
 
-        draw_arc_partitioned(x_pixel, y_pixel, size, 0., self._width, orientation_absolute, color_components)
+        draw_arc_partitioned(x_pixel, y_pixel, size, 0., self._width, orientation_absolute, color_components, blend=True)
         arcade.draw_arc_outline(x_pixel, y_pixel, size, size, (196, 98, 16, 255), 0., self._width, border_width=3, tilt_angle=orientation_absolute)
 
 
@@ -238,7 +238,7 @@ class Environment(RenderObject):
             for _i in range(initial_sources)
         ]
         self._observers = [
-            (Observer(self._virtual_sources, 8, normalize), [(self._x_max - self._x_min) / 2., (self._y_max - self._y_min) / 2., 90., 1.]),
+            (Observer(self._virtual_sources, 64, normalize), [(self._x_max - self._x_min) / 2., (self._y_max - self._y_min) / 2., 90., 1.]),
         ]
         self._real_sources = [
             (Sink(90., self._virtual_sources, normalize), [self._x_min, self._y_min, 0., 1.]),
@@ -312,11 +312,11 @@ class Environment(RenderObject):
         self._was_pressed = is_pressed
 
     def _keyboard_interaction(self, observer_placement: List[float], pressed_keys: Set[Tuple[int, int]]):
-        if (arcade.key.W, 0) in pressed_keys:
+        if arcade.key.W in pressed_keys:
             self._observer_commands.add("move_forward")
             self._observer_commands.discard("move_backward")
 
-        elif (arcade.key.S, 0) in pressed_keys:
+        elif arcade.key.S in pressed_keys:
             self._observer_commands.discard("move_forward")
             self._observer_commands.add("move_backward")
 
@@ -324,11 +324,11 @@ class Environment(RenderObject):
             self._observer_commands.discard("move_forward")
             self._observer_commands.discard("move_backward")
 
-        if (arcade.key.A, 0) in pressed_keys:
+        if arcade.key.A in pressed_keys:
             self._observer_commands.add("turn_left")
             self._observer_commands.discard("turn_right")
 
-        elif (arcade.key.D, 0) in pressed_keys:
+        elif arcade.key.D in pressed_keys:
             self._observer_commands.discard("turn_left")
             self._observer_commands.add("turn_right")
 
@@ -336,11 +336,11 @@ class Environment(RenderObject):
             self._observer_commands.discard("turn_left")
             self._observer_commands.discard("turn_right")
 
-        if (arcade.key.Q, 0) in pressed_keys:
+        if arcade.key.Q in pressed_keys:
             self._observer_commands.add("strafe_left")
             self._observer_commands.discard("strafe_right")
 
-        elif (arcade.key.E, 0) in pressed_keys:
+        elif arcade.key.E in pressed_keys:
             self._observer_commands.discard("strafe_left")
             self._observer_commands.add("strafe_right")
 
@@ -348,7 +348,7 @@ class Environment(RenderObject):
             self._observer_commands.discard("strafe_left")
             self._observer_commands.discard("strafe_right")
 
-        if (arcade.key.R, 0) in pressed_keys:
+        if arcade.key.R in pressed_keys:
             observer_placement[0] = .5
             observer_placement[1] = .5
             observer_placement[2] = 90.
@@ -396,12 +396,12 @@ class NormalizedWindow(arcade.Window):
         mouse_state[3] = modifiers
 
     def on_key_press(self, symbol: int, modifiers: int):
-        keys = symbol, modifiers
-        self._pressed_keys.add(keys)
+        # keys = symbol, modifiers
+        self._pressed_keys.add(symbol)
 
     def on_key_release(self, symbol: int, modifiers: int):
-        keys = symbol, modifiers
-        self._pressed_keys.discard(keys)
+        # keys = symbol, modifiers
+        self._pressed_keys.discard(symbol)
 
     def on_draw(self):
         arcade.start_render()
@@ -413,7 +413,7 @@ class InSideOut(NormalizedWindow):
         width = 800.
         height = 800.
         normalizer = NormalizationSquare(0., width, 0., height)
-        super().__init__("in side out", int(width), int(height), Environment(normalizer))
+        super().__init__("in side out", int(width), int(height), Environment(normalizer, initial_sources=4))
 
 
 # todo: remove general update, replace by class-specific setters
