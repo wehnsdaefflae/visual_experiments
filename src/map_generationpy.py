@@ -20,8 +20,9 @@ class Map:
         ]
 
     @staticmethod
-    def _single_sample_uniform(no_samples: int) -> Tuple[float, ...]:
+    def _single_sample_uniform(no_samples: int, mean: float) -> Tuple[float, ...]:
         assert no_samples >= 1
+        assert 1. >= mean >= 0.
         return tuple(_x / (no_samples - 1) for _x in range(no_samples))
 
     @staticmethod
