@@ -1,5 +1,7 @@
 import random
-from typing import Tuple, List
+from math import sin, pi
+from pprint import pprint
+from typing import Tuple, List, Sequence, Iterable
 
 
 class Map:
@@ -19,28 +21,40 @@ class Map:
 
     @staticmethod
     def _single_sample_uniform(no_samples: int) -> Tuple[float, ...]:
-        samples = [random.random() for _ in range(no_samples)]
-        max_value = max(samples)
-        samples = [_v / max_value for _v in samples]
-
-        factor = 2. / sum(samples)
-
-        return tuple(_v / factor for _v in samples)
+        assert no_samples >= 1
+        return tuple(_x / (no_samples - 1) for _x in range(no_samples))
 
     @staticmethod
-    def _multi_sample_uniform(distribution: Tuple[float, float, float], no_samples: int) -> Tuple[Tuple[float, float, float], ...]:
-        return tuple()
+    def _multi_sample_uniform(distribution: Tuple[float, ...], no_samples: int) -> List[Tuple[float, ...]]:
+        assert all(1. >= _x >= 0. for _x in distribution)
+        unzipped = [
+            [
+                _r * 2. * min(1. - _d, _d) + max(1. - _d, _d)
+                for _r in Map._single_sample_uniform(no_samples)
+            ]
+            for _d in distribution
+        ]
+        for _sublist in unzipped:
+            random.shuffle(_sublist)
+
+        return list(zip(*unzipped))
+
+
+def sample_to_string(sample: Sequence[float], precision: int = 3) -> str:
+    return f"({', '.join(f'{_v:.0{precision:d}f}' for _v in sample)})"
+
+
+def sample_set_to_string(samples: Iterable[Sequence[float]], precision: int = 3, indent: int = 2) -> str:
+    sample_strings = tuple(" " * indent + sample_to_string(each_sample, precision=precision) for each_sample in samples)
+    return "[\n{:s},\n]".format(',\n'.join(sample_strings))
 
 
 def main():
-    for _ in range(1000):
-        samples = Map._single_sample_uniform(5)
-        if not all(1. >= _x >= 0. for _x in samples):
-            print(f"samples:\t{str(samples):s}")
+    samples = Map._multi_sample_uniform((.5, 1., .25), 4)
+    # samples = Map._single_sample_uniform(3)
 
-            s = sum(samples)
-            print(f"sum:\t{s:f}")
-            print(f"average:\t{s / len(samples):f}")
+    print()
+    print(sample_set_to_string(samples))
 
 
 if __name__ == "__main__":
