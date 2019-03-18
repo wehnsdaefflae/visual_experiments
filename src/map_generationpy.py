@@ -1,7 +1,23 @@
 import random
-from math import sin, pi
-from pprint import pprint
-from typing import Tuple, List, Sequence, Iterable
+from typing import Tuple, List, Sequence, Iterable, Generator
+
+
+def my_range(no_samples: int, start: float = 0., end: float = 1.) -> Generator[float, None, None]:
+    if no_samples == 1:
+        yield (start + end) / 2.
+        return
+
+    assert 1 < no_samples
+
+
+    step_size = (end - start) / (no_samples - 1)
+    start_value = start
+
+    for _ in range(no_samples):
+        yield start_value
+        start_value += step_size
+
+    return
 
 
 class Map:
@@ -20,10 +36,28 @@ class Map:
         ]
 
     @staticmethod
-    def _single_sample_uniform(no_samples: int, mean: float) -> Tuple[float, ...]:
+    def _single_sample_uniform(no_samples: int, mean: float) -> List[float]:
         assert no_samples >= 1
-        assert 1. >= mean >= 0.
-        return tuple(_x / (no_samples - 1) for _x in range(no_samples))
+        assert 0. < mean < 1.
+
+        if no_samples == 1:
+            return [mean]
+
+        if no_samples == 2:
+            if .5 < mean:
+                right = (1. - mean) / 2
+                return [mean - right, mean + right]
+            else:
+                left = mean / 2.
+                return [mean - left, mean + left]
+
+        no_samples_left = round(no_samples * (1. - mean))
+        no_samples_right = no_samples - no_samples_left - 1
+
+        samples_left = list(my_range(no_samples_left, start=0., end=mean))
+        samples_right = list(my_range(no_samples_right, start=mean + (1. - mean) / no_samples_right, end=1.))
+
+        return samples_left + samples_right
 
     @staticmethod
     def _multi_sample_uniform(distribution: Tuple[float, ...], no_samples: int) -> List[Tuple[float, ...]]:
@@ -51,11 +85,13 @@ def sample_set_to_string(samples: Iterable[Sequence[float]], precision: int = 3,
 
 
 def main():
-    samples = Map._multi_sample_uniform((.5, 1., .25), 4)
-    # samples = Map._single_sample_uniform(3)
+    # samples = Map._multi_sample_uniform((.5, 1., .25), 4)
+    samples = Map._single_sample_uniform(4, .6)
 
     print()
-    print(sample_set_to_string(samples))
+    print(sample_to_string(samples))
+    print(sum(samples) / len(samples))
+    # print(sample_set_to_string(samples))
 
 
 if __name__ == "__main__":
