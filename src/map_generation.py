@@ -1,12 +1,18 @@
 import random
+from math import ceil
 from typing import Tuple, List, Sequence, Iterable, Generator
 
 
-def my_range(no_samples: int, start: float = 0., end: float = 1., end_point: bool = True) -> Generator[float, None, None]:
+def equidistribute(no_samples: int, target_average: float, start: float = 0., end: float = 1.):
+
+
+def my_range(no_samples: int, start: float = 0., end: float = 1., start_point: bool = True, end_point: bool = True) -> Generator[float, None, None]:
     assert 1 < no_samples
 
-    step_size = (end - start) / (no_samples - int(end_point))
-    start_value = start
+    float_not_start = float(not start_point)
+
+    step_size = (end - start) / (no_samples - float(end_point) + float_not_start)
+    start_value = start + float_not_start * step_size
 
     for _ in range(no_samples):
         yield start_value
@@ -38,13 +44,40 @@ class Map:
         if no_samples == 1:
             return [mean]
 
-        no_samples_right = round(no_samples * mean)
-        no_samples_left = no_samples - no_samples_right
+        sample_ratio_right = no_samples * mean
+        sample_ratio_left = no_samples - sample_ratio_right
 
-        samples_left = list(my_range(no_samples_left, start=0., end=mean, end_point=False))
-        samples_right = list(my_range(no_samples_right, start=mean, end=1., end_point=True))
+        no_samples_right = round(sample_ratio_right)
+        no_samples_left = round(sample_ratio_left)
 
-        return samples_left + samples_right
+        mid_sample = []
+
+        if no_samples_left % 2 == 1 and no_samples_right == 1:
+            if no_samples_left < no_samples_right:
+                no_samples_right -= 1
+                no_samples_left +=
+
+            elif no_samples_right < no_samples_left:
+                no_samples_left -= 1
+                no_samples_right += 1
+
+            else:
+                mid_sample.append(mean)
+                if mean < .5:
+                    no_samples_right -= 1
+                else:
+                    no_samples_left -= 1
+
+        deviance = min(mean, 1. - mean) / 2.
+        mean_left = mean - d
+        mean_right = mean + d
+
+        left_odd = no_samples_left % 2 == 1
+        range_left = list(my_range(no_samples_left, start_point=0., end_point=mean, start_point=left_odd, end_point=left_odd))
+        right_odd = no_samples_right % 2 == 1
+        range_right = list(my_range(no_samples_right, start_point=mean, end_point=1., start_point=right_odd, end_point=right_odd))
+
+        return samples_left + mid_sample + samples_right
 
     @staticmethod
     def _multi_sample_uniform(distribution: Tuple[float, ...], no_samples: int) -> List[Tuple[float, ...]]:
@@ -72,13 +105,19 @@ def sample_set_to_string(samples: Iterable[Sequence[float]], precision: int = 3,
 
 
 def main():
-    # samples = Map._multi_sample_uniform((.5, 1., .25), 4)
-    samples = Map._single_sample_uniform(8, .6)
+    random.seed(345363)
 
-    print()
-    print(sample_to_string(samples))
-    print(sum(samples) / len(samples))
-    # print(sample_set_to_string(samples))
+    # samples = Map._multi_sample_uniform((.5, 1., .25), 4)
+    for _i in range(1000):
+        no_samples = random.randint(1, 12)
+        target_average = random.random()
+        samples = Map._single_sample_uniform(no_samples, target_average)
+        average = sum(samples) / len(samples)
+        if abs(average - target_average) >= .02:
+            print(f"{_i:04}:\n"
+                  f"no_samples: {no_samples:02d}, target_average: {target_average:.03f}, actual_average: {average:0.3f}")
+            print(sample_to_string(samples))
+            break
 
 
 if __name__ == "__main__":
