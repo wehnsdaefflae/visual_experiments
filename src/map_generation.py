@@ -1,9 +1,5 @@
 import random
-from math import ceil
 from typing import Tuple, List, Sequence, Iterable, Generator
-
-
-def equidistribute(no_samples: int, target_average: float, start: float = 0., end: float = 1.):
 
 
 def my_range(no_samples: int, start: float = 0., end: float = 1., start_point: bool = True, end_point: bool = True) -> Generator[float, None, None]:
@@ -50,14 +46,39 @@ class Map:
         no_samples_right = round(sample_ratio_right)
         no_samples_left = round(sample_ratio_left)
 
+        if no_samples_right < 1:
+            no_samples_right += 1
+            no_samples_left -= 1
+
+        elif no_samples_left < 1:
+            no_samples_right -= 1
+            no_samples_left += 1
+
+        deviance = min(mean, 1. - mean) / 2.
+        mean_left = mean - deviance
+        mean_right = mean + deviance
+
+        deviance_step_left = 2. * deviance / no_samples_left
+        deviance_step_right = 2. * deviance / no_samples_right
+
+        left_samples = [mean - _l * deviance_step_left for _l in range(no_samples_left)][::-1]
+        right_samples = [mean + (_r + 1) * deviance_step_right for _r in range(no_samples_right)]
+        return left_samples + right_samples
+
         mid_sample = []
 
-        if no_samples_left % 2 == 1 and no_samples_right == 1:
+        if no_samples_left % 2 == 1 and no_samples_right % 2 == 1:
             if no_samples_left < no_samples_right:
+                if no_samples_right < 2:
+                    raise ValueError("not enough right samples! increase mean or try more samples.")
+
                 no_samples_right -= 1
-                no_samples_left +=
+                no_samples_left += 1
 
             elif no_samples_right < no_samples_left:
+                if no_samples_left < 2:
+                    raise ValueError("not enough left samples! decrease mean or try more samples.")
+
                 no_samples_left -= 1
                 no_samples_right += 1
 
@@ -68,14 +89,23 @@ class Map:
                 else:
                     no_samples_left -= 1
 
-        deviance = min(mean, 1. - mean) / 2.
-        mean_left = mean - d
-        mean_right = mean + d
-
         left_odd = no_samples_left % 2 == 1
-        range_left = list(my_range(no_samples_left, start_point=0., end_point=mean, start_point=left_odd, end_point=left_odd))
+        samples_left = list(
+            my_range(
+                no_samples_left,
+                start=0., end=mean,
+                start_point=left_odd, end_point=left_odd
+            )
+        )
+
         right_odd = no_samples_right % 2 == 1
-        range_right = list(my_range(no_samples_right, start_point=mean, end_point=1., start_point=right_odd, end_point=right_odd))
+        samples_right = list(
+            my_range(
+                no_samples_right,
+                start=mean, end=1.,
+                start_point=right_odd, end_point=right_odd
+            )
+        )
 
         return samples_left + mid_sample + samples_right
 
