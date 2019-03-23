@@ -54,16 +54,16 @@ class Map:
             no_samples_right -= 1
             no_samples_left += 1
 
-        deviance = min(mean, 1. - mean) / 2.
-        mean_left = mean - deviance
-        mean_right = mean + deviance
+        if .5 < mean:
+            samples_right = list(my_range(no_samples_right, start_point=True, end_point=True, start=mean, end=1.))
+            deviance = (1. - mean) / no_samples_left
+            samples_left = [mean - (_i + 1.) * deviance for _i in range(no_samples_left)]
+        else:
+            samples_left = list(my_range(no_samples_left, start_point=True, end_point=True, start=0, end=mean))
+            deviance = mean / no_samples_right
+            samples_right = [mean + (_i + 1) * deviance for _i in range(no_samples_right)]
 
-        deviance_step_left = 2. * deviance / no_samples_left
-        deviance_step_right = 2. * deviance / no_samples_right
-
-        left_samples = [mean - _l * deviance_step_left for _l in range(no_samples_left)][::-1]
-        right_samples = [mean + (_r + 1) * deviance_step_right for _r in range(no_samples_right)]
-        return left_samples + right_samples
+        return samples_left + samples_right
 
         mid_sample = []
 
