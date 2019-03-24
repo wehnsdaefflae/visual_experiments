@@ -55,59 +55,24 @@ class Map:
             no_samples_left += 1
 
         if .5 < mean:
-            samples_right = list(my_range(no_samples_right, start_point=True, end_point=True, start=mean, end=1.))
-            deviance = (1. - mean) / no_samples_left
-            samples_left = [mean - (_i + 1.) * deviance for _i in range(no_samples_left)]
+            if no_samples_right == 1:
+                samples_right = [1.]
+            else:
+                samples_right = list(my_range(no_samples_right, start_point=True, end_point=True, start=mean, end=1.))
+            deviance = sum(_s - mean for _s in samples_right)
+            step = deviance / (no_samples_left ** 2.)
+            samples_left = [mean - (_i + 1.) * step for _i in range(no_samples_left)][::-1]
+
         else:
-            samples_left = list(my_range(no_samples_left, start_point=True, end_point=True, start=0, end=mean))
-            deviance = mean / no_samples_right
-            samples_right = [mean + (_i + 1) * deviance for _i in range(no_samples_right)]
+            if no_samples_left == 1:
+                samples_left = [0.]
+            else:
+                samples_left = list(my_range(no_samples_left, start_point=True, end_point=True, start=0, end=mean))
+            deviance = sum(mean - _s for _s in samples_left)
+            step = deviance / (no_samples_right ** 2.)
+            samples_right = [mean + (_i + 1) * step for _i in range(no_samples_right)]
 
         return samples_left + samples_right
-
-        mid_sample = []
-
-        if no_samples_left % 2 == 1 and no_samples_right % 2 == 1:
-            if no_samples_left < no_samples_right:
-                if no_samples_right < 2:
-                    raise ValueError("not enough right samples! increase mean or try more samples.")
-
-                no_samples_right -= 1
-                no_samples_left += 1
-
-            elif no_samples_right < no_samples_left:
-                if no_samples_left < 2:
-                    raise ValueError("not enough left samples! decrease mean or try more samples.")
-
-                no_samples_left -= 1
-                no_samples_right += 1
-
-            else:
-                mid_sample.append(mean)
-                if mean < .5:
-                    no_samples_right -= 1
-                else:
-                    no_samples_left -= 1
-
-        left_odd = no_samples_left % 2 == 1
-        samples_left = list(
-            my_range(
-                no_samples_left,
-                start=0., end=mean,
-                start_point=left_odd, end_point=left_odd
-            )
-        )
-
-        right_odd = no_samples_right % 2 == 1
-        samples_right = list(
-            my_range(
-                no_samples_right,
-                start=mean, end=1.,
-                start_point=right_odd, end_point=right_odd
-            )
-        )
-
-        return samples_left + mid_sample + samples_right
 
     @staticmethod
     def _multi_sample_uniform(distribution: Tuple[float, ...], no_samples: int) -> List[Tuple[float, ...]]:
@@ -139,7 +104,7 @@ def main():
 
     # samples = Map._multi_sample_uniform((.5, 1., .25), 4)
     for _i in range(1000):
-        no_samples = random.randint(1, 12)
+        no_samples = random.randint(1, 6)
         target_average = random.random()
         samples = Map._single_sample_uniform(no_samples, target_average)
         average = sum(samples) / len(samples)
@@ -147,7 +112,6 @@ def main():
             print(f"{_i:04}:\n"
                   f"no_samples: {no_samples:02d}, target_average: {target_average:.03f}, actual_average: {average:0.3f}")
             print(sample_to_string(samples))
-            break
 
 
 if __name__ == "__main__":
