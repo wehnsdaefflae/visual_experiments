@@ -17,23 +17,9 @@ def my_range(no_samples: int, start: float = 0., end: float = 1., start_point: b
     return
 
 
-class Map:
-    def __init__(self, tile_size: int, map_tiles: int):
-        self._tile_size = tile_size
-        self._map_tiles = map_tiles
-        self._zoom = 1.
-
-        self._current_distribution = .5, .5, .5
-
-        self._region = [
-            [_x
-             for _x in Map._sample_distribution(self._current_distribution, self._map_tiles)
-             ]
-            for _ in range(self._map_tiles)
-        ]
-
+class Sampling:
     @staticmethod
-    def _single_sample_uniform(no_samples: int, mean: float) -> List[float]:
+    def single_sample_uniform(no_samples: int, mean: float) -> List[float]:
         assert no_samples >= 1
         assert 0. < mean < 1.
 
@@ -96,14 +82,11 @@ class Map:
         return samples_left + samples_right
 
     @staticmethod
-    def _multi_sample_uniform(distribution: Tuple[float, ...], no_samples: int) -> List[Tuple[float, ...]]:
-        assert all(1. >= _x >= 0. for _x in distribution)
+    def multi_sample_uniform(no_samples: int, means: Tuple[float, ...]) -> List[Tuple[float, ...]]:
+        assert all(1. >= _x >= 0. for _x in means)
         unzipped = [
-            [
-                _r * 2. * min(1. - _d, _d) + max(1. - _d, _d)
-                for _r in Map._single_sample_uniform(no_samples)
-            ]
-            for _d in distribution
+            Sampling.single_sample_uniform(no_samples, _m)
+            for _m in means
         ]
         for _sublist in unzipped:
             random.shuffle(_sublist)
@@ -126,7 +109,7 @@ def main():
     for _i in range(1000):
         no_samples = random.randint(1, 12)
         target_average = random.random()
-        samples = Map._single_sample_uniform(no_samples, target_average)
+        samples = Sampling.single_sample_uniform(no_samples, target_average)
         average = sum(samples) / len(samples)
         if abs(average - target_average) >= .02 or not all(1. >= _x >= 0. for _x in samples):
             print(f"{_i:04}:\n"
