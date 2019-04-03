@@ -1,4 +1,7 @@
+from __future__ import annotations
+
 import random
+from typing import Optional, Tuple, Sequence
 
 import arcade
 
@@ -6,8 +9,9 @@ from src.sample_distribution import Sampling
 
 
 class Tile:
-    def __init__(self, red: float, green: float, blue: float):
-        self.parent = None
+    def __init__(self, parent: Optional[Tile], red: float, green: float, blue: float):
+        self.parent = parent
+
         self.north = None
         self.east = None
         self.south = None
@@ -16,27 +20,27 @@ class Tile:
         self.color = red, green, blue
         self.children = None
 
-    def zoom(self):
-        self.children = tuple(
-            Tile(*_c) for _c in Sampling.multi_sample_uniform(9, self.color)
-        )
-        # (0, 1, 2,
-        #  3, 4, 5,
-        #  6, 7, 8)
-        if self.north is not None:
-            self.children[0].north = self.north.children[6]
-            if self.north.children is not None:
-                self.north.children[6].south = self.children[0]
+    def get_child_colors(self) -> Sequence[Tuple[float, ...]]:
+        colors = Sampling.multi_sample_uniform(9, self.color)
 
-        self.children[0].east = self.children[1]
-        self.children[0].south = self.children[3]
+        if self.children is None:
+            self.children = tuple(
+                Tile(self, *_c)
+                for _c in colors
+            )
 
-        self.children[1].west = self.children[0]
-        self.children[1].east = self.children[2]
-        self.children[1].south = self.children[4]
+        self.children[0].north
 
 
+        return colors
 
+
+class TileMap:
+    def __init__(self):
+        self.current_tile = Tile(None, .5, .5, .5)
+
+    def draw(self):
+        pass
 
 class Terrain:
     def __init__(self):
