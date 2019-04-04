@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import random
-from typing import Optional, Sequence, Tuple
+from typing import Optional, Sequence, Tuple, List
 
 import arcade
 
@@ -9,23 +9,42 @@ from src.sample_distribution import Sampling
 
 
 class Tile:
-    def __init__(self, parent: Optional[Tile], red: float, green: float, blue: float):
-        self._parent = parent
-        self.color = red, green, blue
-        self._children = None
-        self.neighbors = [None] * 4
+    def __init__(self, parent: Optional[Tile], position: int):
+        self.parent = parent
+        self.position = position
+        self.children = [None] * 9      # type: List[Optional[Tile]]
 
-    def get_north(self):
-        return self.neighbors[0]
+    def get_north(self) -> Optional[Tile]:
+        if self.parent is None:
+            for each_child in self.children[:3]:
+                north_neighbor = each_child.get_north()
+                if north_neighbor is None or north_neighbor.parent is None:
+                    continue
 
-    def get_east(self):
-        return self.neighbors[1]
+                return north_neighbor.parent
 
-    def get_south(self):
-        return self.neighbors[2]
+        else:
+            if self.position >= 3:
+                siblings = self.parent.get_children()
+                return siblings[self.position - 3]
 
-    def get_west(self):
-        return self.neighbors[3]
+            else:
+                north_parent = self.parent.get_north()
+                if north_parent is not None:
+                    siblings = north_parent.get_children()
+
+                    return siblings[6+self.position]
+
+        return None
+
+    def get_east(self) -> Optional[Tile]:
+        return None
+
+    def get_south(self) -> Optional[Tile]:
+        return None
+
+    def get_west(self) -> Optional[Tile]:
+        return None
 
     @staticmethod
     def _get_random_color(margin: float = 0.) -> Tuple[float, float, float]:
@@ -33,39 +52,26 @@ class Tile:
         return random.uniform(margin, 1. - margin), random.uniform(margin, 1. - margin), random.uniform(margin, 1. - margin)
 
     def get_parent(self) -> Tile:
-        if self._parent is None:
-            self._parent = Tile(None, -1., -1., -1.)
+        if self.parent is None:
+            self.parent = Tile(None, -1., -1., -1.)
 
-            children = tuple(self if _i == 4 else Tile(self._parent, *Tile._get_random_color(margin=.1)) for _i in range(9))
+            self.parent.children[4] = self
 
-            for _each_child in children:
-                # generate neighbor reference to self in neighboring tiles AND reference to neighboring tiles
-                pass
+            average_red = sum(each_child.color[0] for each_child in self.parent._children) / 9.
+            average_green = sum(each_child.color[1] for each_child in self.parent._children) / 9.
+            average_blue = sum(each_child.color[2] for each_child in self.parent._children) / 9.
+            self.parent.color = average_red, average_green, average_blue
 
-            self._parent.set_children(children)
-
-            average_red = sum(each_child.color[0] for each_child in self._parent._children) / 9.
-            average_green = sum(each_child.color[1] for each_child in self._parent._children) / 9.
-            average_blue = sum(each_child.color[2] for each_child in self._parent._children) / 9.
-            self._parent.color = average_red, average_green, average_blue
-
-        return self._parent
-
-    def set_children(self, children: Sequence[Tile]):
-        self._children = children
+        return self.parent
 
     def get_children(self) -> Sequence[Tile]:
-        if self._children is None:
+        if self.children is None:
             colors = Sampling.multi_sample_uniform(9, self.color, include_borders=False)
-            self._children = tuple(
+            self.children = tuple(
                     Tile(self, *_c)
                     for _c in colors
                 )
-        return self._children
-
-    def get_clique(self) -> Sequence[Tile]:
-        parent = self.get_parent()
-        return parent._children
+        return self.children
 
 
 class TileMap:
