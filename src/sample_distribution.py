@@ -19,7 +19,7 @@ def my_range(no_samples: int, start: float = 0., end: float = 1., start_point: b
 
 class Sampling:
     @staticmethod
-    def single_sample_uniform(no_samples: int, mean: float) -> List[float]:
+    def single_sample_uniform(no_samples: int, mean: float, include_borders: bool = True) -> List[float]:
         assert no_samples >= 1
         assert 0. < mean < 1.
 
@@ -40,12 +40,13 @@ class Sampling:
             no_samples_right -= 1
             no_samples_left += 1
 
+        # right biased
         if .5 < mean:
             if no_samples_right == 1:
-                samples_right = [1.]
+                samples_right = [1.] if include_borders else [mean + 1. / 2.]
 
             else:
-                samples_right = list(my_range(no_samples_right, start_point=True, end_point=True, start=mean, end=1.))
+                samples_right = list(my_range(no_samples_right, start_point=False, end_point=include_borders, start=mean, end=1.))
 
             mean_left = mean - sum(_s - mean for _s in samples_right) / no_samples_left
             if no_samples_left == 1:
@@ -55,11 +56,12 @@ class Sampling:
                 radius_left = min(mean_left, mean - mean_left)
                 samples_left = list(my_range(
                     no_samples_left,
-                    start_point=True, end_point=True,
-                    start=max(0., mean_left-radius_left),
-                    end=min(mean_left+radius_left, mean),
+                    start_point=include_borders, end_point=False,
+                    start=max(0., mean_left - radius_left),
+                    end=min(mean_left + radius_left, mean),
                 ))
 
+        # left biased
         else:
             if no_samples_left == 1:
                 samples_left = [0.]
@@ -75,8 +77,8 @@ class Sampling:
                 samples_right = list(my_range(
                     no_samples_right,
                     start_point=True, end_point=True,
-                    start=max(mean, mean_right-radius_right),
-                    end=min(1., mean_right+radius_right),
+                    start=max(mean, mean_right - radius_right),
+                    end=min(1., mean_right + radius_right),
                 ))
 
         return samples_left + samples_right
@@ -104,18 +106,12 @@ def sample_set_to_string(samples: Iterable[Sequence[float]], precision: int = 3,
 
 
 def main():
-    random.seed(345363)
-
-    for _i in range(1000):
-        no_samples = random.randint(1, 12)
-        target_average = random.random()
-        samples = Sampling.single_sample_uniform(no_samples, target_average)
-        average = sum(samples) / len(samples)
-        if abs(average - target_average) >= .02 or not all(1. >= _x >= 0. for _x in samples):
-            print(f"{_i:04}:\n"
-                  f"no_samples: {no_samples:02d}, target_average: {target_average:.03f}, actual_average: {average:0.3f}")
-            print(sample_to_string(samples))
-            break
+    no_samples = 7
+    target_average = .779
+    samples = Sampling.single_sample_uniform(no_samples, target_average)
+    average = sum(samples) / len(samples)
+    print(f"no_samples: {no_samples:02d}, target_average: {target_average:.03f}, actual_average: {average:0.3f}")
+    print(sample_to_string(samples))
 
 
 if __name__ == "__main__":

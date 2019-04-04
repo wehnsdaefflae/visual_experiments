@@ -14,10 +14,15 @@ class Tile:
         self.color = red, green, blue
         self._children = None
 
+    @staticmethod
+    def _get_random_color(margin: float = 0.) -> Tuple[float, float, float]:
+        assert margin < .5
+        return random.uniform(margin, 1. - margin), random.uniform(margin, 1. - margin), random.uniform(margin, 1. - margin)
+
     def get_parent(self) -> Tile:
         if self._parent is None:
             self._parent = Tile(None, -1., -1., -1.)
-            children = tuple(Tile(None, random.random(), random.random(), random.random()) if _i != 4 else self for _i in range(9))
+            children = tuple(Tile(None, *Tile._get_random_color(margin=.1)) if _i != 4 else self for _i in range(9))
             self._parent.set_children(children)
 
             average_red = sum(each_child.color[0] for each_child in self._parent._children) / 9.
@@ -54,8 +59,8 @@ class TileMap:
                 small_tile_size = self._tile_size / 3.
 
                 for _j, every_tile in enumerate(each_tile.get_children()):
-                    __x = self._tile_size + small_tile_size * (_i % 3 + .5)
-                    __y = self._tile_size + small_tile_size * (_i // 3 + .5)
+                    __x = self._tile_size + small_tile_size * (_j % 3 + .5)
+                    __y = self._tile_size + small_tile_size * (_j // 3 + .5)
 
                     every_color = round(every_tile.color[0] * 255), round(every_tile.color[1] * 255), round(every_tile.color[2] * 255)
                     arcade.draw_rectangle_filled(__x, __y, small_tile_size, small_tile_size, every_color)
