@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import random
-from typing import Optional, Tuple, Sequence
+from typing import Optional, Sequence, Tuple
 
 import arcade
 
@@ -10,139 +10,116 @@ from src.sample_distribution import Sampling
 
 class Tile:
     def __init__(self, parent: Optional[Tile], red: float, green: float, blue: float):
-        self.parent = parent
-
-        self.north = None
-        self.east = None
-        self.south = None
-        self.west = None
-
+        self._parent = parent
         self.color = red, green, blue
-        self.children = None
+        self._children = None
 
-    def get_child_colors(self) -> Sequence[Tuple[float, ...]]:
-        colors = Sampling.multi_sample_uniform(9, self.color)
+    def get_parent(self) -> Tile:
+        if self._parent is None:
+            self._parent = Tile(None, -1., -1., -1.)
+            children = tuple(Tile(None, random.random(), random.random(), random.random()) if _i != 4 else self for _i in range(9))
+            self._parent.set_children(children)
 
-        if self.children is None:
-            self.children = tuple(
-                Tile(self, *_c)
-                for _c in colors
-            )
+            average_red = sum(each_child.color[0] for each_child in self._parent._children) / 9.
+            average_green = sum(each_child.color[1] for each_child in self._parent._children) / 9.
+            average_blue = sum(each_child.color[2] for each_child in self._parent._children) / 9.
+            self._parent.color = average_red, average_green, average_blue
+        return self._parent
 
-        self.children[0].north
+    def set_children(self, children: Sequence[Tile]):
+        self._children = children
 
+    def get_children(self) -> Sequence[Tile]:
+        if self._children is None:
+            colors = Sampling.multi_sample_uniform(9, self.color)
+            self._children = tuple(
+                    Tile(self, *_c)
+                    for _c in colors
+                )
+        return self._children
 
-        return colors
+    def get_clique(self) -> Sequence[Tile]:
+        parent = self.get_parent()
+        return parent._children
 
 
 class TileMap:
     def __init__(self):
         self.current_tile = Tile(None, .5, .5, .5)
-
-    def draw(self):
-        pass
-
-class Terrain:
-    def __init__(self):
-        self._x = 0
-        self._y = 0
-
-        self._resolution = 5
         self._tile_size = 100.
-        self._window = [
-            [
-                Tile(random.random(), random.random(), random.random())
-                for _ in range(self._resolution)
-            ]
-            for _ in range(self._resolution)
-        ]
-
-        self._window = [each_row[self._x - 1:self._x + 2] for each_row in self._tile_map[self._y - 1:self._y + 2]]
 
     def draw(self):
-        for _x, each_row in enumerate(self._window):
-            for _y, _each_cell in enumerate(each_row):
-                arcade.draw_rectangle_filled(
-                    (_x + .5) * self._tile_size,
-                    (_y + .5) * self._tile_size,
-                    self._tile_size,
-                    self._tile_size,
-                    color=(
-                        round(_each_cell[0] * 255),
-                        round(_each_cell[1] * 255),
-                        round(_each_cell[2] * 255),
-                    )
-                )
+        for _i, each_tile in enumerate(self.current_tile.get_children()):
+            if _i == 4:
+                small_tile_size = self._tile_size / 3.
+
+                for _j, every_tile in enumerate(each_tile.get_children()):
+                    __x = self._tile_size + small_tile_size * (_i % 3 + .5)
+                    __y = self._tile_size + small_tile_size * (_i // 3 + .5)
+
+                    every_color = round(every_tile.color[0] * 255), round(every_tile.color[1] * 255), round(every_tile.color[2] * 255)
+                    arcade.draw_rectangle_filled(__x, __y, small_tile_size, small_tile_size, every_color)
+
+            else:
+                _x = self._tile_size * (_i % 3 + .5)
+                _y = self._tile_size * (_i // 3 + .5)
+
+                each_color = round(each_tile.color[0] * 255), round(each_tile.color[1] * 255), round(each_tile.color[2] * 255)
+                arcade.draw_rectangle_filled(_x, _y, self._tile_size, self._tile_size, each_color)
+
+    def north(self):
+        clique = self.current_tile.get_clique()
+        self.current_tile = clique[1]
+
+    def east(self):
+        clique = self.current_tile.get_clique()
+        self.current_tile = clique[5]
+
+    def south(self):
+        clique = self.current_tile.get_clique()
+        self.current_tile = clique[7]
+
+    def west(self):
+        clique = self.current_tile.get_clique()
+        self.current_tile = clique[3]
 
     def zoom_in(self):
-        new_cells = Sampling.multi_sample_uniform(round(self._resolution ** 2.), self._tile_map[1][1])
-        for _x in range(self._resolution):
-            _row = self._tile_map[_x]
-            for _y in range(self._resolution):
-                _i = self._resolution * _y + _x
-                _row[_y] = new_cells[_i]
+        children = self.current_tile.get_children()
+        self.current_tile = children[4]
 
     def zoom_out(self):
-        pass
-
-    def pan_n(self):
-        self._y += 1
-
-        for _each_row in self._tile_map:
-            new_cell = random.random(), random.random(), random.random()
-            _each_row.append(new_cell)
-
-    def pan_s(self):
-        for _each_row in self._tile_map:
-            new_cell = random.random(), random.random(), random.random()
-            _each_row.insert(0, new_cell)
-
-        self._x += 1
-
-    def pan_e(self):
-        new_row = [(random.random(), random.random(), random.random()) for _ in range(self._resolution)]
-        self._tile_map.append(new_row)
-
-        self._x -= 1
-
-    def pan_w(self):
-        new_row = [(random.random(), random.random(), random.random()) for _ in range(self._resolution)]
-        self._tile_map.insert(0, new_row)
-
-        self._y -= 1
+        self.current_tile = self.current_tile.get_parent()
 
 
 class Window(arcade.Window):
-    def __init__(self, terrain: Terrain):
-        super().__init__(500, 500, title="Terrain Generation")
+    def __init__(self):
+        super().__init__(500, 500, title="Tile Map")
 
-        self._terrain = terrain
+        self._map = TileMap()
 
     def on_key_press(self, symbol: int, modifiers: int):
         # keys = symbol, modifiers
         if symbol == arcade.key.W:
-            self._terrain.pan_n()
+            self._map.north()
         elif symbol == arcade.key.D:
-            self._terrain.pan_e()
+            self._map.east()
         elif symbol == arcade.key.S:
-            self._terrain.pan_s()
+            self._map.south()
         elif symbol == arcade.key.A:
-            self._terrain.pan_w()
+            self._map.west()
 
         elif symbol == arcade.key.PLUS:
-            self._terrain.zoom_in()
+            self._map.zoom_in()
         elif symbol == arcade.key.MINUS:
-            self._terrain.zoom_out()
+            self._map.zoom_out()
 
     def on_draw(self):
         arcade.start_render()
-        self._terrain.draw()
+        self._map.draw()
 
 
 def main():
-    terrain = Terrain()
-
-    Window(terrain)
+    Window()
 
     arcade.run()
 
