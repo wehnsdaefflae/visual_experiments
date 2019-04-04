@@ -56,7 +56,7 @@ class Sampling:
                 radius_left = min(mean_left, mean - mean_left)
                 samples_left = list(my_range(
                     no_samples_left,
-                    start_point=include_borders, end_point=False,
+                    start_point=include_borders, end_point=include_borders,
                     start=max(0., mean_left - radius_left),
                     end=min(mean_left + radius_left, mean),
                 ))
@@ -66,7 +66,7 @@ class Sampling:
             if no_samples_left == 1:
                 samples_left = [0.]
             else:
-                samples_left = list(my_range(no_samples_left, start_point=True, end_point=True, start=0, end=mean))
+                samples_left = list(my_range(no_samples_left, start_point=include_borders, end_point=False, start=0, end=mean))
 
             mean_right = mean + sum(mean - _s for _s in samples_left) / no_samples_right
             if no_samples_right == 1:
@@ -76,7 +76,7 @@ class Sampling:
                 radius_right = min(mean_right - mean, 1. - mean_right)
                 samples_right = list(my_range(
                     no_samples_right,
-                    start_point=True, end_point=True,
+                    start_point=include_borders, end_point=include_borders,
                     start=max(mean, mean_right - radius_right),
                     end=min(1., mean_right + radius_right),
                 ))
@@ -84,10 +84,10 @@ class Sampling:
         return samples_left + samples_right
 
     @staticmethod
-    def multi_sample_uniform(no_samples: int, means: Tuple[float, ...]) -> List[Tuple[float, ...]]:
+    def multi_sample_uniform(no_samples: int, means: Tuple[float, ...], include_borders: bool = True) -> List[Tuple[float, ...]]:
         assert all(1. >= _x >= 0. for _x in means)
         unzipped = [
-            Sampling.single_sample_uniform(no_samples, _m)
+            Sampling.single_sample_uniform(no_samples, _m, include_borders=include_borders)
             for _m in means
         ]
         for _sublist in unzipped:
@@ -106,12 +106,17 @@ def sample_set_to_string(samples: Iterable[Sequence[float]], precision: int = 3,
 
 
 def main():
-    no_samples = 7
-    target_average = .779
-    samples = Sampling.single_sample_uniform(no_samples, target_average)
-    average = sum(samples) / len(samples)
-    print(f"no_samples: {no_samples:02d}, target_average: {target_average:.03f}, actual_average: {average:0.3f}")
-    print(sample_to_string(samples))
+    for _i in range(1000):
+        # no_samples = 9
+        no_samples = random.randint(4, 12)
+        target_average = random.random()
+        include_borders = 0 == random.randint(0, 1)
+        samples = Sampling.single_sample_uniform(no_samples, target_average, include_borders=include_borders)
+        average = sum(samples) / len(samples)
+        if abs(average - target_average) >= .02 or not all(1. >= _x >= 0. for _x in samples):
+            print(f"no_samples: {no_samples:02d}, target_average: {target_average:.03f}, actual_average: {average:0.3f}, include_borders: {str(include_borders):s}")
+            print(sample_to_string(samples))
+            break
 
 
 if __name__ == "__main__":
