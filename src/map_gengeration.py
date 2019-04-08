@@ -41,22 +41,17 @@ class TileMap:
 
     def draw(self):
         for _i, each_tile in enumerate(self.current_window):
-            if False and _i == self.s ** 2 // 2:
-                small_tile_size = self._tile_size / 3.
+            _x = self._tile_size * (_i % self.s + .5)
+            _y = self._tile_size * (_i // self.s + .5)
 
-                for _j, every_tile in enumerate(each_tile.get_color_distribution()):
-                    __x = self._tile_size + small_tile_size * (_j % self.s + .5)
-                    __y = self._tile_size + small_tile_size * (_j // self.s + .5)
+            each_color = round(each_tile.color[0] * 255), round(each_tile.color[1] * 255), round(each_tile.color[2] * 255)
+            arcade.draw_rectangle_filled(_x, _y, self._tile_size, self._tile_size, each_color)
 
-                    every_color = round(every_tile[0] * 255), round(every_tile[1] * 255), round(every_tile[2] * 255)
-                    arcade.draw_rectangle_filled(__x, __y, small_tile_size, small_tile_size, every_color)
+        arcade.draw_rectangle_outline(self.s * self._tile_size / 2, self.s * self._tile_size / 2, self._tile_size, self._tile_size, color=(255, 255, 255), border_width=5)
+        arcade.draw_rectangle_outline(self.s * self._tile_size / 2, self.s * self._tile_size / 2, self._tile_size, self._tile_size, color=(0, 0, 0), border_width=2)
 
-            else:
-                _x = self._tile_size * (_i % self.s + .5)
-                _y = self._tile_size * (_i // self.s + .5)
-
-                each_color = round(each_tile.color[0] * 255), round(each_tile.color[1] * 255), round(each_tile.color[2] * 255)
-                arcade.draw_rectangle_filled(_x, _y, self._tile_size, self._tile_size, each_color)
+        arcade.draw_rectangle_outline(self.s * self._tile_size / 2, self.s * self._tile_size / 2, self._tile_size * 3, self._tile_size * 3, color=(255, 255, 255), border_width=3)
+        arcade.draw_rectangle_outline(self.s * self._tile_size / 2, self.s * self._tile_size / 2, self._tile_size * 3, self._tile_size * 3, color=(0, 0, 0), border_width=1)
 
     def north(self):
         self.current_window[self.s:] = self.current_window[:-self.s]
