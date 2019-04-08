@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import random
-from typing import Tuple, List, Sequence
+from typing import Tuple, Sequence
 
 import arcade
 
@@ -32,12 +32,11 @@ class Tile:
 class TileMap:
     def __init__(self):
         self._tile_size = 100.
-        initial_tile = Tile()
         self.s = 5
-        self.current_window = list(
-            Tile(color=tuple(_c))
-            for _c in Sampling.multi_sample_uniform(self.s ** 2, initial_tile.color, include_borders=False)
-        )
+        self.current_window = [
+            Tile()
+            for _ in range(self.s ** 2)
+        ]
 
     def draw(self):
         for _i, each_tile in enumerate(self.current_window):
