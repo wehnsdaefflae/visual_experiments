@@ -84,14 +84,14 @@ class Sampling:
         return samples_left + samples_right
 
     @staticmethod
-    def multi_sample_uniform(no_samples: int, means: Tuple[float, ...], include_borders: bool = True) -> List[Tuple[float, ...]]:
+    def multi_sample_uniform(no_samples: int, means: Sequence[float], include_borders: bool = True) -> List[Sequence[float]]:
         assert all(1. >= _x >= 0. for _x in means)
         unzipped = [
             Sampling.single_sample_uniform(no_samples, _m, include_borders=include_borders)
             for _m in means
         ]
-        for _sublist in unzipped:
-            random.shuffle(_sublist)
+        #for _sublist in unzipped:
+        #    random.shuffle(_sublist)
 
         return list(zip(*unzipped))
 
