@@ -129,7 +129,7 @@ def main():
         _y_mid = [interpolation_mid[0]] + _mid + [interpolation_mid[-1]]
         plot(x_range_mid_left[5:] + x_range_mid_right[1:6], _y_mid, c="red")
 
-        pyplot.plot(x_range_mid[5], 1.5 * sum(_y_mid) / len(_y_mid), "o-")
+        pyplot.plot(x_range_mid[5], sum(_y_mid) / len(_y_mid), "o-")
 
         #pyplot.plot(x_range[-1], y_range[-1], "o-")
         #y_left = y_range[1:len(y_range) // 2]
