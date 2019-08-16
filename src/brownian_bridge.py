@@ -5,6 +5,8 @@ from typing import Dict, Sequence, Tuple, List
 import math
 from matplotlib import pyplot
 
+from src.sample_distribution import Sampling
+
 TOLERANCE = .000001
 
 
@@ -77,20 +79,6 @@ def plot(x_values: Sequence[float], y_values: Sequence[float], style: str = "k",
     pyplot.plot(x_values, y_values, style, c=c)
 
 
-def _main():
-    sequence = [random.random() * 2. - 1. for _ in range(10)]
-    print(sequence)
-    mean = get_mean(sequence)
-    print(mean)
-    print()
-
-    symmetric_normalize(sequence, value_range=1.)
-    mean = get_mean(sequence)
-    print(sequence)
-    print(mean)
-    print()
-
-
 def main():
     pyplot.ion()
 
@@ -115,11 +103,16 @@ def main():
         pyplot.axvline(x_range_right[0])
         pyplot.axvline(3.)
 
-        interpolation_left = [cosine_interpolate(y_left, y_mid, _i / 10.) for _i in range(10)] + [y_mid]
+        double_y_mid = 1. * y_mid
+
+        for each_sample in Sampling.single_sample_uniform(5, double_y_mid, include_borders=False):
+            pyplot.plot(x_range_mid[5], each_sample, ".-")
+
+        interpolation_left = [cosine_interpolate(y_left, double_y_mid, _i / 10.) for _i in range(10)] + [double_y_mid]
         x_range_mid_left = [_x + .5 for _x in x_range_left] + [x_range_mid[0] + .5]
         plot(x_range_mid_left, interpolation_left)
 
-        interpolation_right = [cosine_interpolate(y_mid, y_right, _i / 10.) for _i in range(10)] + [y_right]
+        interpolation_right = [cosine_interpolate(double_y_mid, y_right, _i / 10.) for _i in range(10)] + [y_right]
         x_range_mid_right = [_x + .5 for _x in x_range_mid] + [x_range_right[0] + .5]
         plot(x_range_mid_right, interpolation_right)
 
@@ -130,13 +123,6 @@ def main():
         plot(x_range_mid_left[5:] + x_range_mid_right[1:6], _y_mid, c="red")
 
         pyplot.plot(x_range_mid[5], sum(_y_mid) / len(_y_mid), "o-")
-
-        #pyplot.plot(x_range[-1], y_range[-1], "o-")
-        #y_left = y_range[1:len(y_range) // 2]
-        #noisify(y_left, lower_bound=0., upper_bound=1.)
-        #y_right = y_range[len(y_range) // 2 + 1:-1]
-        #noisify(y_right, lower_bound=0., upper_bound=1.)
-        #plot(x_range, y_range[:1] + y_left + [y_range[len(y_range) // 2]] + y_right + y_range[-1:])
 
         pyplot.draw()
         pyplot.pause(.1)
