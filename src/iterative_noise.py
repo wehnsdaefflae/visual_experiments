@@ -19,19 +19,17 @@ def randomize_value(old_value: int, return_band: int = 50, step_size: int = 1) -
 def get_neighbors(image: Image, x: int, y: int) -> Sequence[int]:
     width, height = image.size
 
-    if x == 0 and y == 0:
-        return [image.getpixel((x + 1, y)), image.getpixel((x, y + 1))]
+    neighbors = []
+    if 0 < x:
+        neighbors.append(image.getpixel((x - 1, y)))
+    if x < width - 1:
+        neighbors.append(image.getpixel((x + 1, y)))
+    if 0 < y:
+        neighbors.append(image.getpixel((x, y - 1)))
+    if y < height - 1:
+        neighbors.append(image.getpixel((x, y + 1)))
 
-    if x == 0 and y == height - 1:
-        return [image.getpixel((x, y - 1)), image.getpixel((x + 1, y))]
-
-    if x == width - 1 and y == 0:
-        return [image.getpixel((x, y + 1)), image.getpixel((x - 1, y))]
-
-    if x == width - 1 and y == height - 1:
-        return [image.getpixel((x, y - 1)), image.getpixel((x - 1, y))]
-
-    return [image.getpixel((x, y - 1)), image.getpixel((x + 1, y)), image.getpixel((x, y + 1)), image.getpixel((x - 1, y))]
+    return neighbors
 
 
 def nondirectional_noise(im: Image, no_iterations: int = 10):
@@ -41,15 +39,18 @@ def nondirectional_noise(im: Image, no_iterations: int = 10):
         for _y in range(height):
             im.putpixel((_x, _y), random.choice([0, 255]))
 
-    filtered = Image.new("L", (width, height))
     for _i in range(no_iterations):
+        filtered = Image.new("L", (width, height))
+
         for _x in range(width):
             for _y in range(height):
                 neighbors = get_neighbors(im, _x, _y)
-                value = sum(neighbors) // len(neighbors)
-                filtered.putpixel((_x, _y), randomize_value(value, step_size=30))
+                avrg = sum(neighbors) // len(neighbors)
+                new_value = randomize_value(avrg, step_size=30)
+                filtered.putpixel((_x, _y), new_value)
 
-        im = filtered
+        #im.da
+        #im = filtered
 
 
 def directional_noise(im: Image):
@@ -91,8 +92,8 @@ def main():
     height = width
 
     im = Image.new("L", (width, height))
-    # directional_noise(im)
-    nondirectional_noise(im)
+    directional_noise(im)
+    # nondirectional_noise(im)
 
     pyplot.imshow(im)
     pyplot.show()
