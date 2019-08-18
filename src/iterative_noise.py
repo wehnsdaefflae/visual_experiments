@@ -83,44 +83,35 @@ def split_up(value: int, lower_bound: int = 0, upper_bound: int = 255) -> Tuple[
     )  # type: Tuple[int, int, int, int]
 
 
+def _noisify_window(image: Image, x: int, y: int, square_size: int):
+    value = image.getpixel((x, y))
+    noisified = [value] * 4
+    noisify(noisified, factor=.1, lower_bound=0., upper_bound=255.)
+    sub_pixels = [int(_v) for _v in noisified]
+    half_size = square_size // 2
+    image.putpixel((x, y), sub_pixels[0])
+    image.putpixel((x + half_size, y), sub_pixels[1])
+    image.putpixel((x, y + half_size), sub_pixels[2])
+    image.putpixel((x + half_size, y + half_size), sub_pixels[3])
+
+
 def iterative_noise(im: Image, start_value: int = 128):
     width, height = im.size
     assert width == height
     assert is_power_two(width)
 
-    grid = [[start_value]]
+    im.putpixel((0, 0), start_value)
 
-    # 1, 2, 4, 8, 16, 32, 64, 128, 256, 512
-    for _i in range(1, two_to_the_power_of_what(width)):
-        p = (_i + 1) ** 2
+    for square_size in (2 ** _i for _i in reversed(range(1, two_to_the_power_of_what(width) + 1))):
+        for _x in range(0, width, square_size):
+            for _y in range(0, width, square_size):
+                _noisify_window(im, _x, _y, square_size)
 
-        new_grid = [
-            [
-                0 for _ in range(p)
-            ] for _ in range(p)
-        ]
+        pyplot.pause(.00000001)
+        pyplot.clf()
+        pyplot.imshow(im)
+        pyplot.draw()
 
-        for _y, _row in enumerate(grid):
-            _n_y = _y ** 2
-            new_row = new_grid[_n_y]
-            for _x, _cell in enumerate(_row):
-                new_values = split_up(_cell)
-                _n_x = _x ** 2
-                new_row[_n_x] = new_values[0]
-                if _x < p - 1:
-                    new_row[_n_x + 1] = new_values[1]
-                if _y < p - 1:
-                    new_grid[_n_y + 1][_n_x] = new_values[2]
-                if _x < p - 1 and _y < p - 1:
-                    new_grid[_n_y + 1][_n_x + 1] = new_values[3]
-
-        grid = new_grid
-
-    for _x in range(width):
-        for _y in range(height):
-            im.putpixel((_x, _y), grid[_y][_x])
-
-    return im
 
 def directional_noise(im: Image):
     width, height = im.size
@@ -156,6 +147,30 @@ def directional_noise(im: Image):
     pyplot.ioff()
 
 
+def _continuous_windows(im: Image, x: int, y: int, value_a: int, value_b: int, random_range: int = 10):
+    value = min(255, max(0, (value_a + value_b) // 2 + random.randint(-random_range, random_range)))
+    im.putpixel((x, y), value)
+
+
+def continuous_iterative(im: Image):
+    width, height = im.size
+    assert width == height
+    assert is_power_two(width)
+
+    left_top = random.randint(0, 255)
+    left_bot = random.randint(0, 255)
+    right_top = random.randint(0, 255)
+    right_bot = random.randint(0, 255)
+
+    raise NotImplementedError()
+
+    for square_size in (2 ** _i for _i in reversed(range(1, two_to_the_power_of_what(width)))):
+        for _x in range(0, width, square_size):
+            for _y in range(0, width, square_size):
+                _continuous_windows(im, _x, _y)
+                _noisify_window(im, _x, _y, square_size)
+
+
 def main():
     width = 512
     height = width
@@ -163,7 +178,7 @@ def main():
     im = Image.new("L", (width, height))
     directional_noise(im)
     # nondirectional_noise(im)
-    iterative_noise(im)
+    # iterative_noise(im)
 
     pyplot.imshow(im)
     pyplot.show()
