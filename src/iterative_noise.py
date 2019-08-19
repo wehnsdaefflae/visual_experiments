@@ -1,6 +1,7 @@
 import random
 from typing import Sequence, Tuple
 
+import math
 import numpy
 from PIL import Image
 from matplotlib import pyplot
@@ -134,10 +135,12 @@ def directional_noise(im: Image):
         for _x in range(1, width):
             top_value = im.getpixel((_x, _y - 1))
             left_value = im.getpixel((_x - 1, _y))
-            top_left_value = im.getpixel((_x - 1, _y - 1))
-            avrg = (top_value + left_value) // 2
-            value = randomize_value(avrg, step_size=30)
-            im.putpixel((_x, _y), min(255, value))
+            avrg = int((top_value + left_value) / 2.0)
+            value = min(255, randomize_value(avrg, step_size=30))
+            im.putpixel((_x, _y), value)
+
+            # im.putpixel((_x, _y - 1), (top_value * 2 + value * 1) // 3)
+            # im.putpixel((_x - 1, _y), (left_value * 1 + value * 4) // 5)
 
             #pyplot.pause(.00000001)
             #pyplot.clf()
@@ -184,9 +187,9 @@ def continuous_iterative(im: Image):
                 _continuous_windows(im, _x, _y, value_right, value_bot, value_left, square_size // 2)
 
                 # replace with correct values
-                value_right = random.randint(0, 255)
-                value_bot = random.randint(0, 255)
-                value_left = random.randint(0, 255)
+                value_right = im.getpixel((_x + square_size, _y))
+                value_bot = im.getpixel((_x + square_size, _y + square_size))
+                value_left = im.getpixel((_x, _y + square_size))
 
 
 def main():
@@ -194,10 +197,10 @@ def main():
     height = width
 
     im = Image.new("L", (width, height))
-    # directional_noise(im)
+    directional_noise(im)
     # nondirectional_noise(im)
     # iterative_noise(im)
-    continuous_iterative(im)
+    # continuous_iterative(im)
 
     pyplot.imshow(im)
     pyplot.show()
