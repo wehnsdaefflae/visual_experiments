@@ -147,9 +147,23 @@ def directional_noise(im: Image):
     pyplot.ioff()
 
 
-def _continuous_windows(im: Image, x: int, y: int, value_a: int, value_b: int, random_range: int = 10):
-    value = min(255, max(0, (value_a + value_b) // 2 + random.randint(-random_range, random_range)))
-    im.putpixel((x, y), value)
+def _continuous_windows(im: Image, x: int, y: int, value_right: int, value_bottom: int, value_left: int, distance: int, random_range: int = 10):
+    this_value = im.getpixel((x, y))
+
+    _top = min(255, max(0, (this_value + value_right) // 2 + random.randint(-random_range, random_range)))
+    im.putpixel((x + distance // 2, 0), _top)
+
+    _right = min(255, max(0, (value_right + value_bottom) // 2 + random.randint(-random_range, random_range)))
+    im.putpixel((x + distance, y + distance // 2), _right)
+
+    _bottom = min(255, max(0, (value_left + value_bottom) // 2 + random.randint(-random_range, random_range)))
+    im.putpixel((x + distance // 2, y + distance), _bottom)
+
+    _left = min(255, max(0, (this_value + value_left) // 2 + random.randint(-random_range, random_range)))
+    im.putpixel((x, y + distance // 2), _left)
+
+    _middle = min(255, max(0, (this_value + value_bottom) // 2 + random.randint(-random_range, random_range)))
+    im.putpixel((x + distance // 2, y + distance // 2), _left)
 
 
 def continuous_iterative(im: Image):
@@ -157,18 +171,22 @@ def continuous_iterative(im: Image):
     assert width == height
     assert is_power_two(width)
 
-    left_top = random.randint(0, 255)
-    left_bot = random.randint(0, 255)
-    right_top = random.randint(0, 255)
-    right_bot = random.randint(0, 255)
+    im.putpixel((0, 0), random.randint(0, 255))
 
-    raise NotImplementedError()
+    value_right = random.randint(0, 255)
+    value_bot = random.randint(0, 255)
+    value_left = random.randint(0, 255)
 
-    for square_size in (2 ** _i for _i in reversed(range(1, two_to_the_power_of_what(width)))):
+    for square_size in (2 ** _i for _i in reversed(range(two_to_the_power_of_what(width) + 1))):
+        print(square_size)
         for _x in range(0, width, square_size):
             for _y in range(0, width, square_size):
-                _continuous_windows(im, _x, _y)
-                _noisify_window(im, _x, _y, square_size)
+                _continuous_windows(im, _x, _y, value_right, value_bot, value_left, square_size // 2)
+
+                # replace with correct values
+                value_right = random.randint(0, 255)
+                value_bot = random.randint(0, 255)
+                value_left = random.randint(0, 255)
 
 
 def main():
@@ -176,9 +194,10 @@ def main():
     height = width
 
     im = Image.new("L", (width, height))
-    directional_noise(im)
+    # directional_noise(im)
     # nondirectional_noise(im)
     # iterative_noise(im)
+    continuous_iterative(im)
 
     pyplot.imshow(im)
     pyplot.show()
