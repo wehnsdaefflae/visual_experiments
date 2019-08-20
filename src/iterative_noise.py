@@ -1,5 +1,5 @@
 import random
-from typing import Sequence, Tuple, List
+from typing import Sequence, Tuple, List, Optional
 
 import math
 import numpy
@@ -233,7 +233,7 @@ def continuous_iterative(im: Image):
         for _x in range(0, width, square_size):
             for _y in range(0, width, square_size):
                 values = _get_pixels(im, _x, _y, square_size)
-                values = tuple(max(min(_v + random.randint(-50, 50), 255), 0) for _v in values)
+                values = tuple(max(min(_v + random.randint(-25, 25), 255), 0) for _v in values)
                 _set_pixels(im, values, _x, _y, square_size)
 
         pyplot.pause(.00000001)
@@ -244,8 +244,19 @@ def continuous_iterative(im: Image):
     pyplot.ioff()
 
 
+class Tile:
+    def __init__(self, value: int, neighbour_tiles: Optional[Tuple["Tile", "Tile", "Tile", "Tile"]] = None, parent_tile: "Tile" = None):
+        self._value = value
+        self._sub_tiles = None
+
+    def get_sub_tiles(self) -> Tuple["Tile", "Tile", "Tile", "Tile"]:
+        if self._sub_tiles is None:
+            pass
+        return self._sub_tiles
+
+
 def main():
-    width = 513
+    width = 1025
     height = width
 
     im = Image.new("L", (width, height))
