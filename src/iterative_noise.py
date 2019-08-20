@@ -1,5 +1,5 @@
 import random
-from typing import Sequence, Tuple
+from typing import Sequence, Tuple, List
 
 import math
 import numpy
@@ -169,40 +169,95 @@ def _continuous_windows(im: Image, x: int, y: int, value_right: int, value_botto
     im.putpixel((x + distance // 2, y + distance // 2), _left)
 
 
+def _rectangle(im: Image, x: int, y: int, size: int):
+    width, height = im.size
+    for _v in range(size):
+        if _v + x < width:
+            im.putpixel((_v + x, y), 255)
+            if y + size < height:
+                im.putpixel((_v + x, y + size), 255)
+        if _v + y < height:
+            im.putpixel((x, _v + y), 255)
+            if x + size < width:
+                im.putpixel((x + size, _v + y), 255)
+
+
+def _get_pixels(im: Image, x: int, y: int, size: int) -> Tuple[int, int, int, int]:
+    nw_value = im.getpixel((x, y))
+    ne_value = im.getpixel((x + size, y))
+    se_value = im.getpixel((x + size, y + size))
+    sw_value = im.getpixel((x, y + size))
+
+    return nw_value, ne_value, se_value, sw_value
+
+
+def _interpolate(nw_value: int, ne_value: int, se_value: int, sw_value: int) -> Tuple[int, int, int, int, int]:
+    n_value = (nw_value + ne_value) // 2
+    e_value = (ne_value + se_value) // 2
+    s_value = (se_value + sw_value) // 2
+    w_value = (sw_value + nw_value) // 2
+    m_value = (nw_value + ne_value + se_value + sw_value) // 4
+    return n_value, e_value, s_value, w_value, m_value
+
+
+def _set_pixels(im: Image, values: Tuple[int, int, int, int], x: int, y: int, size: int):
+    n_value, e_value, s_value, w_value, m_value = _interpolate(*values)
+
+    if y == 0:
+        im.putpixel((x + size // 2, y), n_value)
+    if x == 0:
+        im.putpixel((x, y + size // 2), w_value)
+
+    im.putpixel((x + size // 2, y + size // 2), m_value)
+
+    im.putpixel((x + size, y + size // 2), e_value)
+    im.putpixel((x + size // 2, y + size), s_value)
+
+
 def continuous_iterative(im: Image):
     width, height = im.size
     assert width == height
+    width -= 1
+    height -= 1
     assert is_power_two(width)
 
     im.putpixel((0, 0), random.randint(0, 255))
+    im.putpixel((width, 0), random.randint(0, 255))
+    im.putpixel((width, height), random.randint(0, 255))
+    im.putpixel((0, height), random.randint(0, 255))
 
-    value_right = random.randint(0, 255)
-    value_bot = random.randint(0, 255)
-    value_left = random.randint(0, 255)
+    pyplot.ion()
 
-    for square_size in (2 ** _i for _i in reversed(range(two_to_the_power_of_what(width) + 1))):
+    for square_size in (2 ** _i for _i in reversed(range(1, two_to_the_power_of_what(width) + 1))):
         print(square_size)
         for _x in range(0, width, square_size):
             for _y in range(0, width, square_size):
-                _continuous_windows(im, _x, _y, value_right, value_bot, value_left, square_size // 2)
+                values = _get_pixels(im, _x, _y, square_size)
+                values = tuple(max(min(_v + random.randint(-50, 50), 255), 0) for _v in values)
+                _set_pixels(im, values, _x, _y, square_size)
 
-                # replace with correct values
-                value_right = im.getpixel((_x + square_size, _y))
-                value_bot = im.getpixel((_x + square_size, _y + square_size))
-                value_left = im.getpixel((_x, _y + square_size))
+        pyplot.pause(.00000001)
+        pyplot.clf()
+        pyplot.imshow(im, vmin=0, vmax=255)
+        pyplot.draw()
+
+    pyplot.ioff()
 
 
 def main():
-    width = 512
+    width = 513
     height = width
 
     im = Image.new("L", (width, height))
-    directional_noise(im)
+    # directional_noise(im)
     # nondirectional_noise(im)
     # iterative_noise(im)
-    # continuous_iterative(im)
+    continuous_iterative(im)
 
-    pyplot.imshow(im)
+    # todo: extend block wise
+    #       zoom in, zoom out
+
+    pyplot.imshow(im, vmin=0, vmax=255)
     pyplot.show()
 
 
