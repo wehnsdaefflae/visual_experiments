@@ -1,8 +1,6 @@
 import random
 from typing import Sequence, Tuple, List, Optional
 
-import math
-import numpy
 from PIL import Image
 from matplotlib import pyplot
 
@@ -10,13 +8,7 @@ from src.brownian_bridge import noisify
 
 
 def randomize_value(old_value: int, return_band: int = 50, step_size: int = 1) -> int:
-    return max(0, min(255, old_value + random.choice([-step_size, step_size])))
-
-    if old_value < return_band:
-        return old_value + step_size * int(old_value < random.randint(0, return_band)) * 2 - 1
-
-    if return_band < old_value:
-        return old_value + step_size * int(random.randint(0, return_band) < old_value) * 2 - 1
+    return max(1, min(255, old_value + random.choice([-step_size, step_size])))
 
 
 def get_neighbors(image: Image, x: int, y: int) -> Sequence[int]:
@@ -75,15 +67,6 @@ def is_power_two(n: int) -> bool:
     return n and (not(n & (n - 1)))
 
 
-def split_up(value: int, lower_bound: int = 0, upper_bound: int = 255) -> Tuple[int, int, int, int]:
-    return tuple(
-        int(_x)
-        for _x in noisify(
-            [value * 4.], lower_bound=0., upper_bound=255.
-        )
-    )  # type: Tuple[int, int, int, int]
-
-
 def _noisify_window(image: Image, x: int, y: int, square_size: int):
     value = image.getpixel((x, y))
     noisified = [value] * 4
@@ -114,29 +97,27 @@ def iterative_noise(im: Image, start_value: int = 128):
         pyplot.draw()
 
 
-def directional_noise(im: Image):
-    width, height = im.size
+def directional_noise(im: Image, size: int, x_offset: int = 0, y_offset: int = 0, randomization: int = 30):
+    im.putpixel((x_offset, y_offset), random.randint(1, 255))
 
-    im.putpixel((0, 0), 128)
+    for _x in range(x_offset + 1, x_offset + size):
+        left = im.getpixel((_x - 1, y_offset))
+        value = max(1, min(255, left + random.randint(-randomization, randomization)))
+        im.putpixel((_x, y_offset), value)
 
-    for _x in range(1, width):
-        left = im.getpixel((_x - 1, 0))
-        value = randomize_value(left, step_size=30)
-        im.putpixel((_x, 0), value)
-
-    for _y in range(1, height):
-        top = im.getpixel((0, _y - 1))
-        value = randomize_value(top, step_size=30)
-        im.putpixel((0, _y), value)
+    for _y in range(y_offset + 1, y_offset + size):
+        top = im.getpixel((x_offset, _y - 1))
+        value = max(1, min(255, top + random.randint(-randomization, randomization)))
+        im.putpixel((x_offset, _y), value)
 
     pyplot.ion()
 
-    for _y in range(1, height):
-        for _x in range(1, width):
+    for _y in range(x_offset + 1, x_offset + size):
+        for _x in range(y_offset + 1, y_offset + size):
             top_value = im.getpixel((_x, _y - 1))
             left_value = im.getpixel((_x - 1, _y))
             avrg = int((top_value + left_value) / 2.0)
-            value = min(255, randomize_value(avrg, step_size=30))
+            value = max(1, min(255, avrg + random.randint(-randomization, randomization)))
             im.putpixel((_x, _y), value)
 
             # im.putpixel((_x, _y - 1), (top_value * 2 + value * 1) // 3)
@@ -203,38 +184,55 @@ def _interpolate(nw_value: int, ne_value: int, se_value: int, sw_value: int) -> 
 def _set_pixels(im: Image, values: Tuple[int, int, int, int], x: int, y: int, size: int):
     n_value, e_value, s_value, w_value, m_value = _interpolate(*values)
 
+    x_mid = x + size // 2
+    y_mid = y + size // 2
+
     if y == 0:
-        im.putpixel((x + size // 2, y), n_value)
+        v = im.getpixel((x_mid, y))
+        if v < 1:
+            im.putpixel((x_mid, y), n_value)
+
     if x == 0:
-        im.putpixel((x, y + size // 2), w_value)
+        v = im.getpixel((x, y_mid))
+        if v < 1:
+            im.putpixel((x, y_mid), w_value)
 
-    im.putpixel((x + size // 2, y + size // 2), m_value)
+    v = im.getpixel((x_mid, y_mid))
+    if v < 1:
+        im.putpixel((x_mid, y_mid), m_value)
 
-    im.putpixel((x + size, y + size // 2), e_value)
-    im.putpixel((x + size // 2, y + size), s_value)
+    v = im.getpixel((x + size, y_mid))
+    if v < 1:
+        im.putpixel((x + size, y_mid), e_value)
+
+    v = im.getpixel((x_mid, y + size))
+    if v < 1:
+        im.putpixel((x_mid, y + size), s_value)
 
 
-def continuous_iterative(im: Image):
+def continuous_iterative(im: Image, randomization: int = 20):
     width, height = im.size
     assert width == height
     width -= 1
     height -= 1
     assert is_power_two(width)
 
-    im.putpixel((0, 0), random.randint(0, 255))
-    im.putpixel((width, 0), random.randint(0, 255))
-    im.putpixel((width, height), random.randint(0, 255))
-    im.putpixel((0, height), random.randint(0, 255))
+    im.putpixel((0, 0), random.randint(1, 255))
+    im.putpixel((width, 0), random.randint(1, 255))
+    im.putpixel((width, height), random.randint(1, 255))
+    im.putpixel((0, height), random.randint(1, 255))
 
     pyplot.ion()
 
-    for square_size in (2 ** _i for _i in reversed(range(1, two_to_the_power_of_what(width) + 1))):
-        print(square_size)
+    square_size = width
+    while 1 < square_size:
         for _x in range(0, width, square_size):
             for _y in range(0, width, square_size):
                 values = _get_pixels(im, _x, _y, square_size)
-                values = tuple(max(min(_v + random.randint(-25, 25), 255), 0) for _v in values)
+                values = tuple(max(min(_v + random.randint(-randomization, randomization), 255), 1) for _v in values)
                 _set_pixels(im, values, _x, _y, square_size)
+
+        square_size //= 2
 
         pyplot.pause(.00000001)
         pyplot.clf()
@@ -244,32 +242,30 @@ def continuous_iterative(im: Image):
     pyplot.ioff()
 
 
-class Tile:
-    def __init__(self, value: int, neighbour_tiles: Optional[Tuple["Tile", "Tile", "Tile", "Tile"]] = None, parent_tile: "Tile" = None):
-        self._value = value
-        self._sub_tiles = None
-
-    def get_sub_tiles(self) -> Tuple["Tile", "Tile", "Tile", "Tile"]:
-        if self._sub_tiles is None:
-            pass
-        return self._sub_tiles
-
-
 def main():
-    width = 1025
+    width = 256
     height = width
 
-    im = Image.new("L", (width, height))
-    # directional_noise(im)
+    im = Image.new("L", (width + 1, height + 1), color=0)
+
+    """
+    for _x in range(width // 4, 3 * width // 4):
+        for _y in range(height // 4, 3 * height // 4):
+            im.putpixel((_x, _y), 155)
+    """
+
+    directional_noise(im, 128, x_offset=64, y_offset=64, randomization=30)
     # nondirectional_noise(im)
     # iterative_noise(im)
-    continuous_iterative(im)
+    continuous_iterative(im, randomization=30)
 
     # todo: extend block wise
     #       zoom in, zoom out
 
     pyplot.imshow(im, vmin=0, vmax=255)
     pyplot.show()
+
+    extended = Image.new("L", (width * 2 + 1, height + 1))
 
 
 if __name__ == "__main__":
