@@ -181,6 +181,13 @@ def _interpolate(nw_value: int, ne_value: int, se_value: int, sw_value: int) -> 
     return n_value, e_value, s_value, w_value, m_value
 
 
+def _write_pixel(image: Image, x: int, y: int, value: int):
+    assert value != 0
+    _v = image.getpixel((x, y))
+    if _v < 1:
+        image.putpixel((x, y), min(255, max(1, value)))
+
+
 def _set_pixels(im: Image, values: Tuple[int, int, int, int], x: int, y: int, size: int):
     n_value, e_value, s_value, w_value, m_value = _interpolate(*values)
 
@@ -188,26 +195,14 @@ def _set_pixels(im: Image, values: Tuple[int, int, int, int], x: int, y: int, si
     y_mid = y + size // 2
 
     if y == 0:
-        v = im.getpixel((x_mid, y))
-        if v < 1:
-            im.putpixel((x_mid, y), n_value)
+        _write_pixel(im, x_mid, y, n_value)
 
     if x == 0:
-        v = im.getpixel((x, y_mid))
-        if v < 1:
-            im.putpixel((x, y_mid), w_value)
+        _write_pixel(im, x, y_mid, w_value)
 
-    v = im.getpixel((x_mid, y_mid))
-    if v < 1:
-        im.putpixel((x_mid, y_mid), m_value)
-
-    v = im.getpixel((x + size, y_mid))
-    if v < 1:
-        im.putpixel((x + size, y_mid), e_value)
-
-    v = im.getpixel((x_mid, y + size))
-    if v < 1:
-        im.putpixel((x_mid, y + size), s_value)
+    _write_pixel(im, x_mid, y_mid, m_value)
+    _write_pixel(im, x + size, y_mid, e_value)
+    _write_pixel(im, x_mid, y + size, s_value)
 
 
 def _draw(im: Image):
@@ -225,18 +220,15 @@ def continuous_iterative(im: Image, size: int, x_offset: int = 0, y_offset: int 
     height -= 1
     assert is_power_two(width)
 
-    if im.getpixel((x_offset, y_offset)) < 1:
-        im.putpixel((x_offset, y_offset), random.randint(1, 255))
+    _write_pixel(im, x_offset, y_offset, random.randint(1, 255))
 
     for _x in range(x_offset + 1, x_offset + width + 1):
-        value = im.getpixel((_x - 1, 0))
-        if im.getpixel((_x, 0)) < 1:
-            im.putpixel((_x, 0), max(1, min(255, value + random.randint(-randomization, randomization))))
+        value = im.getpixel((_x - 1, 0)) + random.randint(-randomization, randomization)
+        _write_pixel(im, _x, 0, value)
 
     for _y in range(y_offset + 1, y_offset + height + 1):
-        value = im.getpixel((0, _y - 1))
-        if im.getpixel((0, _y)) < 1:
-            im.putpixel((0, _y), max(1, min(255, value + random.randint(-randomization, randomization))))
+        value = im.getpixel((0, _y - 1)) + random.randint(-randomization, randomization)
+        _write_pixel(im, 0, _y, value)
 
     pyplot.ion()
 
@@ -272,6 +264,10 @@ def main():
 
     # continuous_iterative(im, 128 + 1, x_offset=0, y_offset=0, randomization=30)
     # continuous_iterative(im, width + 1, x_offset=0, y_offset=0, randomization=30)
+
+    # ===
+    # problem: bottom right pixel gets overwritten!
+    # ===
 
     # todo: extend block wise
     #       zoom in, zoom out
