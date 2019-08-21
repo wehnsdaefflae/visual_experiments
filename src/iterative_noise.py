@@ -210,34 +210,49 @@ def _set_pixels(im: Image, values: Tuple[int, int, int, int], x: int, y: int, si
         im.putpixel((x_mid, y + size), s_value)
 
 
-def continuous_iterative(im: Image, randomization: int = 20):
-    width, height = im.size
+def _draw(im: Image):
+    pyplot.pause(.00000001)
+    pyplot.clf()
+    pyplot.imshow(im, vmin=1, vmax=255)
+    pyplot.draw()
+    a = 0
+
+
+def continuous_iterative(im: Image, size: int, x_offset: int = 0, y_offset: int = 0, randomization: int = 20):
+    width, height = size, size
     assert width == height
     width -= 1
     height -= 1
     assert is_power_two(width)
 
-    im.putpixel((0, 0), random.randint(1, 255))
-    im.putpixel((width, 0), random.randint(1, 255))
-    im.putpixel((width, height), random.randint(1, 255))
-    im.putpixel((0, height), random.randint(1, 255))
+    if im.getpixel((x_offset, y_offset)) < 1:
+        im.putpixel((x_offset, y_offset), random.randint(1, 255))
+
+    for _x in range(x_offset + 1, x_offset + width + 1):
+        value = im.getpixel((_x - 1, 0))
+        if im.getpixel((_x, 0)) < 1:
+            im.putpixel((_x, 0), max(1, min(255, value + random.randint(-randomization, randomization))))
+
+    for _y in range(y_offset + 1, y_offset + height + 1):
+        value = im.getpixel((0, _y - 1))
+        if im.getpixel((0, _y)) < 1:
+            im.putpixel((0, _y), max(1, min(255, value + random.randint(-randomization, randomization))))
 
     pyplot.ion()
+
+    _draw(im)
 
     square_size = width
     while 1 < square_size:
         for _x in range(0, width, square_size):
             for _y in range(0, width, square_size):
-                values = _get_pixels(im, _x, _y, square_size)
+                values = _get_pixels(im, _x + x_offset, _y + y_offset, square_size)
                 values = tuple(max(min(_v + random.randint(-randomization, randomization), 255), 1) for _v in values)
-                _set_pixels(im, values, _x, _y, square_size)
+                _set_pixels(im, values, _x + x_offset, _y + y_offset, square_size)
 
         square_size //= 2
 
-        pyplot.pause(.00000001)
-        pyplot.clf()
-        pyplot.imshow(im, vmin=0, vmax=255)
-        pyplot.draw()
+        _draw(im)
 
     pyplot.ioff()
 
@@ -248,24 +263,21 @@ def main():
 
     im = Image.new("L", (width + 1, height + 1), color=0)
 
-    """
-    for _x in range(width // 4, 3 * width // 4):
-        for _y in range(height // 4, 3 * height // 4):
-            im.putpixel((_x, _y), 155)
-    """
-
-    directional_noise(im, 128, x_offset=64, y_offset=64, randomization=30)
+    # directional_noise(im, 128, x_offset=1, y_offset=1, randomization=30)
     # nondirectional_noise(im)
     # iterative_noise(im)
-    continuous_iterative(im, randomization=30)
+
+    for _size in (2 ** _i + 1 for _i in range(3, 9)):
+        continuous_iterative(im, _size, x_offset=0, y_offset=0, randomization=30)
+
+    # continuous_iterative(im, 128 + 1, x_offset=0, y_offset=0, randomization=30)
+    # continuous_iterative(im, width + 1, x_offset=0, y_offset=0, randomization=30)
 
     # todo: extend block wise
     #       zoom in, zoom out
 
-    pyplot.imshow(im, vmin=0, vmax=255)
+    pyplot.imshow(im, vmin=1, vmax=255)
     pyplot.show()
-
-    extended = Image.new("L", (width * 2 + 1, height + 1))
 
 
 if __name__ == "__main__":
