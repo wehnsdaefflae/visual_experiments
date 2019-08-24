@@ -3,6 +3,7 @@ from typing import Sequence, Tuple, List, Optional
 
 from PIL import Image
 from matplotlib import pyplot
+from matplotlib.backend_bases import MouseEvent
 
 from src.brownian_bridge import noisify
 
@@ -210,7 +211,6 @@ def _draw(im: Image):
     pyplot.clf()
     pyplot.imshow(im, vmin=1, vmax=255)
     pyplot.draw()
-    a = 0
 
 
 def continuous_iterative(im: Image, size: int, x_offset: int = 0, y_offset: int = 0, randomization: int = 20):
@@ -221,14 +221,9 @@ def continuous_iterative(im: Image, size: int, x_offset: int = 0, y_offset: int 
     assert is_power_two(width)
 
     _write_pixel(im, x_offset, y_offset, random.randint(1, 255))
-
-    for _x in range(x_offset + 1, x_offset + width + 1):
-        value = im.getpixel((_x - 1, 0)) + random.randint(-randomization, randomization)
-        _write_pixel(im, _x, 0, value)
-
-    for _y in range(y_offset + 1, y_offset + height + 1):
-        value = im.getpixel((0, _y - 1)) + random.randint(-randomization, randomization)
-        _write_pixel(im, 0, _y, value)
+    _write_pixel(im, x_offset + width, y_offset, random.randint(1, 255))
+    _write_pixel(im, x_offset + width, y_offset + height, random.randint(1, 255))
+    _write_pixel(im, x_offset, y_offset + height, random.randint(1, 255))
 
     pyplot.ion()
 
@@ -242,15 +237,26 @@ def continuous_iterative(im: Image, size: int, x_offset: int = 0, y_offset: int 
                 values = tuple(max(min(_v + random.randint(-randomization, randomization), 255), 1) for _v in values)
                 _set_pixels(im, values, _x + x_offset, _y + y_offset, square_size)
 
-        square_size //= 2
+            _draw(im)
 
-        _draw(im)
+        square_size //= 2
 
     pyplot.ioff()
 
 
+def onpress(event: MouseEvent):
+    if event.button != 1:
+        return
+    x, y = event.xdata, event.ydata
+    print(f"{x:f}, {y:f}")
+    pyplot.draw()
+
+
 def main():
-    width = 256
+    figure_source, axis_source = pyplot.subplots()
+    figure_source.canvas.mpl_connect("button_press_event", onpress)
+
+    width = 512
     height = width
 
     im = Image.new("L", (width + 1, height + 1), color=0)
@@ -259,21 +265,18 @@ def main():
     # nondirectional_noise(im)
     # iterative_noise(im)
 
-    for _size in (2 ** _i + 1 for _i in range(3, 9)):
-        continuous_iterative(im, _size, x_offset=0, y_offset=0, randomization=30)
+    #for _size in (2 ** _i + 1 for _i in range(3, 9)):
+    #    continuous_iterative(im, _size, x_offset=0, y_offset=0, randomization=30)
 
-    # continuous_iterative(im, 128 + 1, x_offset=0, y_offset=0, randomization=30)
-    # continuous_iterative(im, width + 1, x_offset=0, y_offset=0, randomization=30)
-
-    # ===
-    # problem: bottom right pixel gets overwritten!
-    # ===
+    continuous_iterative(im, width + 1, x_offset=0, y_offset=0, randomization=30)
 
     # todo: extend block wise
     #       zoom in, zoom out
 
     pyplot.imshow(im, vmin=1, vmax=255)
     pyplot.show()
+
+
 
 
 if __name__ == "__main__":
