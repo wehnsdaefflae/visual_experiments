@@ -56,7 +56,6 @@ def _interpolate(nw_value: int, ne_value: int, se_value: int, sw_value: int) -> 
 
 
 def _write_pixel(image: Image, x: int, y: int, value: int):
-    assert value != 0
     _v = image.getpixel((x, y))
     if _v < 1:
         image.putpixel((x, y), min(255, max(1, value)))
@@ -79,36 +78,36 @@ def _set_pixels(im: Image, values: Tuple[int, int, int, int], x: int, y: int, si
     _write_pixel(im, x_mid, y + size, s_value)
 
 
-def _draw(im: Image):
+def _draw(im: Image, steps: int = 255):
     pyplot.pause(.00000001)
     pyplot.clf()
-    pyplot.imshow(im, vmin=1, vmax=255)
+    pyplot.imshow(im, vmin=1, vmax=steps)
     pyplot.draw()
 
 
-def continuous_iterative(im: Image, size: int, x_offset: int = 0, y_offset: int = 0, randomization: int = 20):
+def continuous_iterative(im: Image, size: int, x_offset: int = 0, y_offset: int = 0, randomization: int = 20, steps: int = 255):
     width, height = size, size
     assert width == height
     assert is_power_two(width)
 
-    _write_pixel(im, x_offset, y_offset, random.randint(1, 255))
-    _write_pixel(im, x_offset + width, y_offset, random.randint(1, 255))
-    _write_pixel(im, x_offset + width, y_offset + height, random.randint(1, 255))
-    _write_pixel(im, x_offset, y_offset + height, random.randint(1, 255))
+    _write_pixel(im, x_offset, y_offset, random.randint(1, steps))
+    _write_pixel(im, x_offset + width, y_offset, random.randint(1, steps))
+    _write_pixel(im, x_offset + width, y_offset + height, random.randint(1, steps))
+    _write_pixel(im, x_offset, y_offset + height, random.randint(1, steps))
 
     pyplot.ion()
 
-    _draw(im)
+    #_draw(im)
 
     square_size = width
     while 1 < square_size:
         for _x in range(0, width, square_size):
             for _y in range(0, width, square_size):
                 values = _get_pixels(im, _x + x_offset, _y + y_offset, square_size)
-                values = tuple(max(min(_v + random.randint(-randomization, randomization), 255), 1) for _v in values)
+                values = tuple(max(min(_v + random.randint(-randomization, randomization), steps), 1) for _v in values)
                 _set_pixels(im, values, _x + x_offset, _y + y_offset, square_size)
 
-            _draw(im)
+            #_draw(im)
 
         square_size //= 2
 
@@ -123,6 +122,20 @@ def onpress(event: MouseEvent):
     pyplot.draw()
 
 
+def zoom(image: Image) -> Image:
+    width, height = image.size
+    image_zoomed = Image.new("L", (width, height), color=0)
+    offset_x = width // 4
+    offset_y = height // 4
+    for _x in range(width // 2):
+        _x_source = _x + offset_x
+        _x_target = _x * 2
+        for _y in range(height // 2):
+            value = image.getpixel((_x_source, _y + offset_y))
+            image_zoomed.putpixel((_x_target, _y * 2), value)
+    return image_zoomed
+
+
 def main():
     figure_source, axis_source = pyplot.subplots()
     figure_source.canvas.mpl_connect("button_press_event", onpress)
@@ -132,16 +145,28 @@ def main():
 
     im = Image.new("L", (width + 1, height + 1), color=0)
 
-    #for _size in (2 ** _i + 1 for _i in range(3, 9)):
-    #    continuous_iterative(im, _size, x_offset=0, y_offset=0, randomization=30)
-
-    continuous_iterative(im, width, x_offset=0, y_offset=0, randomization=30)
+    continuous_iterative(im, width, x_offset=0, y_offset=0, randomization=1, steps=5)
 
     # todo: extend block wise
     #       zoom in, zoom out
 
-    pyplot.imshow(im, vmin=1, vmax=255)
-    pyplot.show()
+    # pyplot.imshow(im, vmin=1, vmax=255)
+    # pyplot.show()
+
+    while True:
+        im_z = zoom(im)
+
+        _rectangle(im, width // 4, height // 4, width // 2)
+        _draw(im, steps=5)
+
+        continuous_iterative(im_z, width, x_offset=0, y_offset=0, randomization=1, steps=5)
+
+        #pyplot.imshow(im_z, vmin=1, vmax=255)
+        #pyplot.show()
+
+        im = im_z
+
+    # zoom
 
 
 if __name__ == "__main__":
