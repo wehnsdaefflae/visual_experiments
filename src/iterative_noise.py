@@ -216,8 +216,6 @@ def _draw(im: Image):
 def continuous_iterative(im: Image, size: int, x_offset: int = 0, y_offset: int = 0, randomization: int = 20):
     width, height = size, size
     assert width == height
-    width -= 1
-    height -= 1
     assert is_power_two(width)
 
     _write_pixel(im, x_offset, y_offset, random.randint(1, 255))
@@ -268,15 +266,13 @@ def main():
     #for _size in (2 ** _i + 1 for _i in range(3, 9)):
     #    continuous_iterative(im, _size, x_offset=0, y_offset=0, randomization=30)
 
-    continuous_iterative(im, width + 1, x_offset=0, y_offset=0, randomization=30)
+    continuous_iterative(im, width, x_offset=0, y_offset=0, randomization=30)
 
     # todo: extend block wise
     #       zoom in, zoom out
 
     pyplot.imshow(im, vmin=1, vmax=255)
     pyplot.show()
-
-
 
 
 if __name__ == "__main__":
