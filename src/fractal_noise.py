@@ -122,7 +122,7 @@ def onpress(event: MouseEvent):
     pyplot.draw()
 
 
-def zoom(image: Image) -> Image:
+def zoom_in(image: Image) -> Image:
     width, height = image.size
     image_zoomed = Image.new("L", (width, height), color=0)
     offset_x = width // 4
@@ -133,6 +133,24 @@ def zoom(image: Image) -> Image:
         for _y in range(height // 2):
             value = image.getpixel((_x_source, _y + offset_y))
             image_zoomed.putpixel((_x_target, _y * 2), value)
+    return image_zoomed
+
+
+def zoom_out(image: Image) -> Image:
+    # todo: generate by combining translations
+    width, height = image.size
+    image_zoomed = Image.new("L", (width, height), color=0)
+    offset_x = width // 4
+    offset_y = height // 4
+    for _x in range(width // 2):
+        _x_double = _x * 2
+        for _y in range(height // 2):
+            _y_double = _y * 2
+            value_nw = image.getpixel((_x_double, _y_double))
+            value_ne = image.getpixel((_x_double + 1, _y_double))
+            value_se = image.getpixel((_x_double + 1, _y_double + 1))
+            value_sw = image.getpixel((_x_double, _y_double + 1))
+            image_zoomed.putpixel((offset_x + _x, offset_y + _y), (value_nw + value_ne + value_se + value_sw) // 4)
     return image_zoomed
 
 
@@ -147,26 +165,16 @@ def main():
 
     continuous_iterative(im, width, x_offset=0, y_offset=0, randomization=1, steps=5)
 
-    # todo: extend block wise
-    #       zoom in, zoom out
-
-    # pyplot.imshow(im, vmin=1, vmax=255)
-    # pyplot.show()
-
     while True:
-        im_z = zoom(im)
+        # im_z = zoom_in(im)
+        im_z = zoom_out(im)
 
         _rectangle(im, width // 4, height // 4, width // 2)
         _draw(im, steps=5)
 
         continuous_iterative(im_z, width, x_offset=0, y_offset=0, randomization=1, steps=5)
 
-        #pyplot.imshow(im_z, vmin=1, vmax=255)
-        #pyplot.show()
-
         im = im_z
-
-    # zoom
 
 
 if __name__ == "__main__":
