@@ -122,7 +122,7 @@ def onpress(event: MouseEvent):
     pyplot.draw()
 
 
-def zoom_in(image: Image) -> Image:
+def zoom_in(image: Image, x: int = 0, y: int = 0, factor: float = 2.) -> Image:
     width, height = image.size
     image_zoomed = Image.new("L", (width, height), color=0)
     offset_x = width // 4
@@ -136,7 +136,7 @@ def zoom_in(image: Image) -> Image:
     return image_zoomed
 
 
-def zoom_out(image: Image) -> Image:
+def zoom_out(image: Image, x: int = 0, y: int = 0, factor: float = .5) -> Image:
     # todo: generate by combining translations
     width, height = image.size
     image_zoomed = Image.new("L", (width, height), color=0)
@@ -163,16 +163,16 @@ def main():
 
     im = Image.new("L", (width + 1, height + 1), color=0)
 
-    continuous_iterative(im, width, x_offset=0, y_offset=0, randomization=1, steps=5)
+    continuous_iterative(im, width, x_offset=0, y_offset=0, randomization=2, steps=10)
 
     while True:
-        # im_z = zoom_in(im)
-        im_z = zoom_out(im)
+        im_z = zoom_in(im)
+        # im_z = zoom_out(im)
 
         _rectangle(im, width // 4, height // 4, width // 2)
-        _draw(im, steps=5)
+        _draw(im, steps=10)
 
-        continuous_iterative(im_z, width, x_offset=0, y_offset=0, randomization=1, steps=5)
+        continuous_iterative(im_z, width, x_offset=0, y_offset=0, randomization=2, steps=10)
 
         im = im_z
 
