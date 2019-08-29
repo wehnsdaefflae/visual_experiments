@@ -48,13 +48,18 @@ def _get_pixels(im: Image, x: int, y: int, size: int) -> Tuple[int, int, int, in
     return nw_value, ne_value, se_value, sw_value
 
 
-def _interpolate(nw_value: int, ne_value: int, se_value: int, sw_value: int) -> Tuple[int, int, int, int, int]:
+def _randomize(values: Sequence[int], randomization: int, min_value: int, max_value: int) -> Tuple[int, ...]:
+    return tuple(max(min(_v + random.randint(-randomization, randomization), max_value), min_value) for _v in values)
+
+
+def _randomized_interpolation(nw_value: int, ne_value: int, se_value: int, sw_value: int, randomization: int, min_value: int, max_value: int) -> Tuple[int, ...]:
     n_value = (nw_value + ne_value) // 2
     e_value = (ne_value + se_value) // 2
     s_value = (se_value + sw_value) // 2
     w_value = (sw_value + nw_value) // 2
     m_value = (nw_value + ne_value + se_value + sw_value) // 4
-    return n_value, e_value, s_value, w_value, m_value
+    interpolated_values = n_value, e_value, s_value, w_value, m_value
+    return _randomize(interpolated_values, randomization, min_value, max_value)
 
 
 def _write_pixel(image: Image, x: int, y: int, value: int):
@@ -63,8 +68,8 @@ def _write_pixel(image: Image, x: int, y: int, value: int):
         image.putpixel((x, y), min(255, max(1, value)))
 
 
-def _set_pixels(im: Image, values: Tuple[int, int, int, int], x: int, y: int, size: int):
-    n_value, e_value, s_value, w_value, m_value = _interpolate(*values)
+def _set_pixels(im: Image, values_interpolated: Tuple[int, ...], x: int, y: int, size: int):
+    n_value, e_value, s_value, w_value, m_value = values_interpolated
 
     x_mid = x + size // 2
     y_mid = y + size // 2
@@ -99,7 +104,7 @@ def _draw(im: Image, steps: int = 255, blur: bool = False):
     pyplot.draw()
 
 
-def fractal_noise(im: Image, size: int, x_offset: int = 0, y_offset: int = 0, randomization: int = 20, steps: int = 255):
+def fractal_noise(im: Image, size: int, x_offset: int = 0, y_offset: int = 0, randomization: int = 30, steps: int = 255):
     assert is_power_two(size)
 
     _write_pixel(im, x_offset, y_offset, random.randint(1, steps))
@@ -114,8 +119,8 @@ def fractal_noise(im: Image, size: int, x_offset: int = 0, y_offset: int = 0, ra
         for _x in range(0, size, square_size):
             for _y in range(0, size, square_size):
                 values = _get_pixels(im, _x + x_offset, _y + y_offset, square_size)
-                values = tuple(max(min(_v + random.randint(-randomization, randomization), steps), 1) for _v in values)
-                _set_pixels(im, values, _x + x_offset, _y + y_offset, square_size)
+                values_interpolated = _randomized_interpolation(*values, randomization, 1, steps)
+                _set_pixels(im, values_interpolated, _x + x_offset, _y + y_offset, square_size)
 
         square_size //= 2
 
@@ -171,19 +176,22 @@ def zoom_out(image: Image, x: int = 0, y: int = 0, factor: float = .5) -> Image:
 def main():
     # figure_source, axis_source = pyplot.subplots()
 
+    r = 20
+    s = 255
+
     size = 512
 
     im = Image.new("L", (size + 1, size + 1), color=0)
 
-    fractal_noise(im, size, x_offset=0, y_offset=0, randomization=30, steps=255)
+    fractal_noise(im, size, x_offset=0, y_offset=0, randomization=r, steps=s)
 
     while True:
         im_z = zoom_in(im)
         # im_z = zoom_out(im)
 
-        _draw(im, steps=255)
+        _draw(im, steps=s)
 
-        fractal_noise(im_z, size, x_offset=0, y_offset=0, randomization=30, steps=255)
+        fractal_noise(im_z, size, x_offset=0, y_offset=0, randomization=r, steps=s)
 
         im = im_z
 
