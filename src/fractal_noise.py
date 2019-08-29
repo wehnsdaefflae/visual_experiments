@@ -155,7 +155,7 @@ def move(image: Image, direction: Direction) -> Image:
         pass
 
 
-def zoom_out(image: Image, x: int = 0, y: int = 0, factor: float = .5) -> Image:
+def shrink(image: Image, x: int = 0, y: int = 0, factor: float = .5) -> Image:
     # todo: generate by combining translations
     width, height = image.size
     image_zoomed = Image.new("L", (width, height), color=0)
@@ -173,6 +173,34 @@ def zoom_out(image: Image, x: int = 0, y: int = 0, factor: float = .5) -> Image:
     return image_zoomed
 
 
+def zoom_out(image: Image) -> Image:
+    width, height = image.size
+    assert width == height
+    size = width // 2
+
+    image_n = Image.new("L", (size + 1, size + 1), color=0)
+    for _x in range(size):
+        value = (image.getpixel((_x * 2, 0)) + image.getpixel((_x * 2 + 1, 0))) // 2
+        image_n.putpixel((_x, 0), value)
+    fractal_noise(image_n, size, x_offset=0, y_offset=0, randomization=30, steps=255)
+
+    """
+    edge_e = [image.getpixel((width - 1, _y)) for _y in range(width)]
+
+    edge_s = [image.getpixel((_x, height - 1)) for _x in range(width)]
+
+    edge_w = [image.getpixel((0, _y)) for _y in range(width)]
+    """
+
+    image = shrink(image)
+    for _x in range(size):
+        for _y in range(size):
+            value = image_n.getpixel((_x, _y))
+            image.putpixel((_x + size // 4, _y), value)
+
+    return image
+
+
 def main():
     # figure_source, axis_source = pyplot.subplots()
 
@@ -182,7 +210,6 @@ def main():
     size = 512
 
     im = Image.new("L", (size + 1, size + 1), color=0)
-
     fractal_noise(im, size, x_offset=0, y_offset=0, randomization=r, steps=s)
 
     while True:
