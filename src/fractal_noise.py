@@ -1,27 +1,16 @@
 import random
+from enum import Enum
 from typing import Sequence, Tuple, List, Optional
 
+import numpy
+from scipy import ndimage
 from PIL import Image
 from matplotlib import pyplot
 from matplotlib.backend_bases import MouseEvent
 
-from src.brownian_bridge import noisify
-
 
 def is_power_two(n: int) -> bool:
     return n and (not(n & (n - 1)))
-
-
-def _noisify_window(image: Image, x: int, y: int, square_size: int):
-    value = image.getpixel((x, y))
-    noisified = [value] * 4
-    noisify(noisified, factor=.1, lower_bound=0., upper_bound=255.)
-    sub_pixels = [int(_v) for _v in noisified]
-    half_size = square_size // 2
-    image.putpixel((x, y), sub_pixels[0])
-    image.putpixel((x + half_size, y), sub_pixels[1])
-    image.putpixel((x, y + half_size), sub_pixels[2])
-    image.putpixel((x + half_size, y + half_size), sub_pixels[3])
 
 
 def _rectangle(im: Image, x: int, y: int, size: int):
@@ -35,6 +24,19 @@ def _rectangle(im: Image, x: int, y: int, size: int):
             im.putpixel((x, _v + y), 255)
             if x + size < width:
                 im.putpixel((x + size, _v + y), 255)
+
+
+def _np_rectangle(im: numpy.array, x: int, y: int, size: int):
+    width, height = im.shape
+    for _v in range(size):
+        if _v + x < width:
+            im[_v + x, y] = 255
+            if y + size < height:
+                im[_v + x, y + size] = 255
+        if _v + y < height:
+            im[x, _v + y] = 255
+            if x + size < width:
+                im[x + size, _v + y] = 255
 
 
 def _get_pixels(im: Image, x: int, y: int, size: int) -> Tuple[int, int, int, int]:
@@ -78,48 +80,46 @@ def _set_pixels(im: Image, values: Tuple[int, int, int, int], x: int, y: int, si
     _write_pixel(im, x_mid, y + size, s_value)
 
 
-def _draw(im: Image, steps: int = 255):
+def _draw(im: Image, steps: int = 255, blur: bool = False):
+    width, height = im.size
+
     pyplot.pause(.00000001)
     pyplot.clf()
-    pyplot.imshow(im, vmin=1, vmax=steps)
+
+    if blur:
+        blurred = ndimage.gaussian_filter(im, sigma=5)
+        _np_rectangle(blurred, width // 4, height // 4, width // 2)
+        pyplot.pcolormesh(blurred.T, cmap="gist_earth", shading="gouraud", vmin=1, vmax=steps)
+
+    else:
+        _rectangle(im, width // 4, height // 4, width // 2)
+        pyplot.imshow(im, cmap="gist_earth", vmin=1, vmax=steps)
+
+    # pyplot.contour(im, levels=[.5, 1.])
     pyplot.draw()
 
 
-def continuous_iterative(im: Image, size: int, x_offset: int = 0, y_offset: int = 0, randomization: int = 20, steps: int = 255):
-    width, height = size, size
-    assert width == height
-    assert is_power_two(width)
+def fractal_noise(im: Image, size: int, x_offset: int = 0, y_offset: int = 0, randomization: int = 20, steps: int = 255):
+    assert is_power_two(size)
 
     _write_pixel(im, x_offset, y_offset, random.randint(1, steps))
-    _write_pixel(im, x_offset + width, y_offset, random.randint(1, steps))
-    _write_pixel(im, x_offset + width, y_offset + height, random.randint(1, steps))
-    _write_pixel(im, x_offset, y_offset + height, random.randint(1, steps))
+    _write_pixel(im, x_offset + size, y_offset, random.randint(1, steps))
+    _write_pixel(im, x_offset + size, y_offset + size, random.randint(1, steps))
+    _write_pixel(im, x_offset, y_offset + size, random.randint(1, steps))
 
     pyplot.ion()
 
-    #_draw(im)
-
-    square_size = width
+    square_size = size
     while 1 < square_size:
-        for _x in range(0, width, square_size):
-            for _y in range(0, width, square_size):
+        for _x in range(0, size, square_size):
+            for _y in range(0, size, square_size):
                 values = _get_pixels(im, _x + x_offset, _y + y_offset, square_size)
                 values = tuple(max(min(_v + random.randint(-randomization, randomization), steps), 1) for _v in values)
                 _set_pixels(im, values, _x + x_offset, _y + y_offset, square_size)
 
-            #_draw(im)
-
         square_size //= 2
 
     pyplot.ioff()
-
-
-def onpress(event: MouseEvent):
-    if event.button != 1:
-        return
-    x, y = event.xdata, event.ydata
-    print(f"{x:f}, {y:f}")
-    pyplot.draw()
 
 
 def zoom_in(image: Image, x: int = 0, y: int = 0, factor: float = 2.) -> Image:
@@ -134,6 +134,20 @@ def zoom_in(image: Image, x: int = 0, y: int = 0, factor: float = 2.) -> Image:
             value = image.getpixel((_x_source, _y + offset_y))
             image_zoomed.putpixel((_x_target, _y * 2), value)
     return image_zoomed
+
+
+class Direction(Enum):
+    N = 0
+    E = 1
+    S = 2
+    W = 3
+
+
+def move(image: Image, direction: Direction) -> Image:
+    width, height = image.size
+    im_trans = Image.new("L", (width, height), color=0)
+    if direction == Direction.N:
+        pass
 
 
 def zoom_out(image: Image, x: int = 0, y: int = 0, factor: float = .5) -> Image:
@@ -155,24 +169,21 @@ def zoom_out(image: Image, x: int = 0, y: int = 0, factor: float = .5) -> Image:
 
 
 def main():
-    figure_source, axis_source = pyplot.subplots()
-    figure_source.canvas.mpl_connect("button_press_event", onpress)
+    # figure_source, axis_source = pyplot.subplots()
 
-    width = 512
-    height = width
+    size = 512
 
-    im = Image.new("L", (width + 1, height + 1), color=0)
+    im = Image.new("L", (size + 1, size + 1), color=0)
 
-    continuous_iterative(im, width, x_offset=0, y_offset=0, randomization=2, steps=10)
+    fractal_noise(im, size, x_offset=0, y_offset=0, randomization=30, steps=255)
 
     while True:
         im_z = zoom_in(im)
         # im_z = zoom_out(im)
 
-        _rectangle(im, width // 4, height // 4, width // 2)
-        _draw(im, steps=10)
+        _draw(im, steps=255)
 
-        continuous_iterative(im_z, width, x_offset=0, y_offset=0, randomization=2, steps=10)
+        fractal_noise(im_z, size, x_offset=0, y_offset=0, randomization=30, steps=255)
 
         im = im_z
 
