@@ -194,6 +194,7 @@ def shift(image: Image, x: int, y: int) -> Image:
 
 class Tile:
     def __init__(self, size: int):
+        assert is_power_two(size)
         _image = Image.new("L", (size, size), color=0)
         _edge_east = [0] * size
         _edge_south = [0] * (size + 1)
