@@ -158,12 +158,15 @@ def move(image: Image, direction: Direction) -> Image:
 def shrink(image: Image, x: int = 0, y: int = 0, factor: float = .5) -> Image:
     # todo: generate by combining translations
     width, height = image.size
+    assert width == height
+    size = width
+
     image_zoomed = Image.new("L", (width, height), color=0)
-    offset_x = width // 4
-    offset_y = height // 4
-    for _x in range(width // 2):
+    offset_x = size // 4
+    offset_y = size // 4
+    for _x in range(size // 2):
         _x_double = _x * 2
-        for _y in range(height // 2):
+        for _y in range(size // 2):
             _y_double = _y * 2
             value_nw = image.getpixel((_x_double, _y_double))
             value_ne = image.getpixel((_x_double + 1, _y_double))
@@ -183,6 +186,9 @@ def flip(image: Image) -> Image:
             image_new.putpixel((width - _y - 1, height - _x - 1), value)
 
     return image_new
+
+def shift(image: Image, x: int, y: int) -> Image:
+    pass
 
 
 def zoom_out(image: Image) -> Image:
@@ -241,7 +247,7 @@ def main():
     r = 20
     s = 255
 
-    size = 256
+    size = 8
 
     im = Image.new("L", (size + 1, size + 1), color=0)
     fractal_noise(im, size, x_offset=0, y_offset=0, randomization=r, steps=s)
