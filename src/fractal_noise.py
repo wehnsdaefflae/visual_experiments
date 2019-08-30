@@ -187,8 +187,18 @@ def flip(image: Image) -> Image:
 
     return image_new
 
+
 def shift(image: Image, x: int, y: int) -> Image:
     pass
+
+
+class Tile:
+    def __init__(self, size: int):
+        _image = Image.new("L", (size, size), color=0)
+        _edge_east = [0] * size
+        _edge_south = [0] * (size + 1)
+
+# TODO: use time instead of image
 
 
 def zoom_out(image: Image) -> Image:
