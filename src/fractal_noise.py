@@ -34,11 +34,11 @@ class Tile:
         self._max = value_max
         self._randomization = randomization
 
-    def draw(self):
+    def draw(self, skip_render: bool = False):
         pyplot.ion()
 
         image = self.image()
-        image = _render(image, skip=True)
+        image = _render(image, skip=skip_render)
 
         pyplot.clf()
         pyplot.imshow(image, cmap="gist_earth", vmin=self._min, vmax=self._max)
@@ -291,11 +291,11 @@ class Tile:
         return tile_shrunk
 
     def _insert_tile(self, tile: "Tile", x: int = 0, y: int = 0):
-        for _x in range(tile._size):
+        for _x in range(tile._size + 1):
             x_total = x + _x
             if self._size < x_total or x_total < 0:
                 continue
-            for _y in range(tile._size):
+            for _y in range(tile._size + 1):
                 y_total = y + _y
                 if self._size < y_total or y_total < 0:
                     continue
@@ -303,6 +303,15 @@ class Tile:
                 self._set(x_total, y_total, value)
 
     def zoom_out(self) -> "Tile":
+        tile_new = self._new()
+
+        tile_mid = self._shrink()
+        tile_new._insert_tile(tile_mid, x=tile_new._size // 4, y=tile_new._size // 4)
+
+        tile_new.create_noise()
+        return tile_new
+
+    def _zoom_out(self) -> "Tile":
         tile_new = self._new()
 
         tile_mid = self._shrink()
@@ -332,7 +341,6 @@ class Tile:
         tile_north_west = tile_mid.go_north_west(tile_north, tile_west)
         tile_new._insert_tile(tile_north_west, x=-tile_new._size // 4, y=-tile_new._size // 4)
 
-        # tile_shrunk.create_noise()
         return tile_new
 
 
@@ -342,20 +350,19 @@ class Tile:
 def _render(image: Image, skip: bool = False) -> Image:
     rendered = image.copy()
     width, height = rendered.size
+    if not skip:
+        filtered_a = image.filter(ImageFilter.GaussianBlur(radius=2))
+        # filtered_a = filtered_a.filter(ImageFilter.CONTOUR)
+        filtered_b = image.filter(ImageFilter.GaussianBlur(radius=5))
+        data_a = numpy.array(filtered_a)
+        #data_b = numpy.array(filtered_b)
+        #for row_a, row_b in zip(data_a, data_b):
+        #    for i, value_b in enumerate(row_b):
+        #        if value_b < 128:
+        #            row_a[i] = 1
+        rendered = Image.fromarray(data_a, mode="L")
     _rectangle(rendered, width // 4, height // 4, width // 2)
-    if skip:
-        return rendered
-
-    filtered_a = image.filter(ImageFilter.GaussianBlur(radius=2))
-    # filtered_a = filtered_a.filter(ImageFilter.CONTOUR)
-    filtered_b = image.filter(ImageFilter.GaussianBlur(radius=5))
-    data_a = numpy.array(filtered_a)
-    data_b = numpy.array(filtered_b)
-    for row_a, row_b in zip(data_a, data_b):
-        for i, value_b in enumerate(row_b):
-            if value_b < 128:
-                row_a[i] = 1
-    return Image.fromarray(data_a, mode="L")
+    return rendered
 
 
 def main():
@@ -365,12 +372,10 @@ def main():
     tile.create_noise()
 
     for _i in range(1000):
-        tile.draw()
+        tile.draw(skip_render=True)
 
-        if _i % 2 == 1:
-            tile = tile.zoom_in()
-        else:
-            tile = tile.zoom_out()
+        # tile = tile.zoom_in()
+        tile = tile.zoom_out()
 
         #tile = tile.go_south()
 
