@@ -2,9 +2,11 @@ import random
 from enum import Enum
 from typing import Sequence, Tuple, List, Optional
 
+import PIL
 import numpy
 from scipy import ndimage
 from PIL import Image
+from PIL import ImageFilter
 from matplotlib import pyplot
 from matplotlib.backend_bases import MouseEvent
 
@@ -85,20 +87,13 @@ def _set_pixels(im: Image, values_interpolated: Tuple[int, ...], x: int, y: int,
     _write_pixel(im, x_mid, y + size, s_value)
 
 
-def _draw(im: Image, steps: int = 255, blur: bool = False):
+def _draw(im: Image, steps: int = 255):
     width, height = im.size
 
     pyplot.pause(.00000001)
     pyplot.clf()
 
-    if blur:
-        blurred = ndimage.gaussian_filter(im, sigma=5)
-        _np_rectangle(blurred, width // 4, height // 4, width // 2)
-        pyplot.pcolormesh(blurred.T, cmap="gist_earth", shading="gouraud", vmin=1, vmax=steps)
-
-    else:
-        _rectangle(im, width // 4, height // 4, width // 2)
-        pyplot.imshow(im, cmap="gist_earth", vmin=1, vmax=steps)
+    pyplot.imshow(im, cmap="gist_earth", vmin=1, vmax=steps)
 
     # pyplot.contour(im, levels=[.5, 1.])
     pyplot.draw()
@@ -129,6 +124,9 @@ def fractal_noise(im: Image, size: int, x_offset: int = 0, y_offset: int = 0, ra
 
 def zoom_in(image: Image, x: int = 0, y: int = 0, factor: float = 2.) -> Image:
     width, height = image.size
+    assert width == height
+    size = width
+
     image_zoomed = Image.new("L", (width, height), color=0)
     offset_x = width // 4
     offset_y = height // 4
@@ -138,6 +136,8 @@ def zoom_in(image: Image, x: int = 0, y: int = 0, factor: float = 2.) -> Image:
         for _y in range(height // 2):
             value = image.getpixel((_x_source, _y + offset_y))
             image_zoomed.putpixel((_x_target, _y * 2), value)
+
+    fractal_noise(image_zoomed, size - 1, x_offset=0, y_offset=0, randomization=20, steps=255)
     return image_zoomed
 
 
@@ -173,32 +173,66 @@ def shrink(image: Image, x: int = 0, y: int = 0, factor: float = .5) -> Image:
     return image_zoomed
 
 
+def flip(image: Image) -> Image:
+    width, height = image.size
+    image_new = Image.new("L", (width, height), color=0)
+
+    for _y in range(height):
+        for _x in range(width):
+            value = image.getpixel((_x, _y))
+            image_new.putpixel((width - _y - 1, height - _x - 1), value)
+
+    return image_new
+
+
 def zoom_out(image: Image) -> Image:
     width, height = image.size
     assert width == height
-    size = width // 2
+    size = width
 
-    image_n = Image.new("L", (size + 1, size + 1), color=0)
-    for _x in range(size):
-        value = (image.getpixel((_x * 2, 0)) + image.getpixel((_x * 2 + 1, 0))) // 2
-        image_n.putpixel((_x, 0), value)
-    fractal_noise(image_n, size, x_offset=0, y_offset=0, randomization=30, steps=255)
+    image_copy = image.copy()
 
-    """
-    edge_e = [image.getpixel((width - 1, _y)) for _y in range(width)]
+    image_copy = shrink(image_copy)
+    _draw(image_copy)
 
-    edge_s = [image.getpixel((_x, height - 1)) for _x in range(width)]
+    image_copy = flip(image_copy)
+    _draw(image_copy)
 
-    edge_w = [image.getpixel((0, _y)) for _y in range(width)]
-    """
+    fractal_noise(image_copy, size - 1, x_offset=0, y_offset=0, randomization=20, steps=255)
+    _draw(image_copy)
 
-    image = shrink(image)
-    for _x in range(size):
-        for _y in range(size):
-            value = image_n.getpixel((_x, _y))
-            image.putpixel((_x + size // 4, _y), value)
+    for _y in range(size - 1):
+        for _x in range(size - _y - 1):
+            if _x < size // 4 or _y < size // 4:
+                image_copy.putpixel((_x + 1, _y + 1), 0)
+    _draw(image_copy)
 
-    return image
+    image_copy = flip(image_copy)
+    _draw(image_copy)
+
+    fractal_noise(image_copy, size - 1, x_offset=0, y_offset=0, randomization=20, steps=255)
+    _draw(image_copy)
+
+    return image_copy
+
+
+def _render(image: Image, skip: bool = False) -> Image:
+    rendered = image.copy()
+    width, height = rendered.size
+    _rectangle(rendered, width // 4, height // 4, width // 2)
+    if skip:
+        return rendered
+
+    filtered_a = image.filter(ImageFilter.GaussianBlur(radius=2))
+    # filtered_a = filtered_a.filter(ImageFilter.CONTOUR)
+    filtered_b = image.filter(ImageFilter.GaussianBlur(radius=5))
+    data_a = numpy.array(filtered_a)
+    data_b = numpy.array(filtered_b)
+    for row_a, row_b in zip(data_a, data_b):
+        for i, value_b in enumerate(row_b):
+            if value_b < 128:
+                row_a[i] = 1
+    return Image.fromarray(data_a, mode="L")
 
 
 def main():
@@ -207,18 +241,17 @@ def main():
     r = 20
     s = 255
 
-    size = 512
+    size = 256
 
     im = Image.new("L", (size + 1, size + 1), color=0)
     fractal_noise(im, size, x_offset=0, y_offset=0, randomization=r, steps=s)
 
     while True:
-        im_z = zoom_in(im)
-        # im_z = zoom_out(im)
+        rendered = _render(im, skip=True)
+        _draw(rendered, steps=s)
 
-        _draw(im, steps=s)
-
-        fractal_noise(im_z, size, x_offset=0, y_offset=0, randomization=r, steps=s)
+        # im_z = zoom_in(im)
+        im_z = zoom_out(im)
 
         im = im_z
 
