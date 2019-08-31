@@ -1,4 +1,5 @@
 import random
+import time
 from typing import Optional
 
 import numpy
@@ -372,6 +373,7 @@ class Map:
     def __init__(self, tile_size: int = 512):
         self._tile_size = tile_size
         self._tile_current = Tile(tile_size)
+        self._tile_current.create_noise()
         self._x_current = 0
         self._y_current = 0
         self._level_current = 0
@@ -436,25 +438,55 @@ class Map:
         self._tile_current.draw(skip_render=True)
 
     def go_north(self) -> Tile:
-        raise NotImplementedError()
+        # check above and below
+        self._y_current -= 1
+        tile = self._get_tile(self._level_current, self._x_current, self._y_current)
+        if tile is None:
+            self._tile_current = self._generate_tile(self._level_current, self._x_current, self._y_current)
+        else:
+            self._tile_current = tile
+        return self._tile_current
 
     def go_east(self) -> Tile:
-        raise NotImplementedError()
+        # check above and below
+        self._x_current += 1
+        tile = self._get_tile(self._level_current, self._x_current, self._y_current)
+        if tile is None:
+            self._tile_current = self._generate_tile(self._level_current, self._x_current, self._y_current)
+        else:
+            self._tile_current = tile
+        return self._tile_current
 
     def go_south(self) -> Tile:
-        raise NotImplementedError()
+        # check above and below
+        self._y_current += 1
+        tile = self._get_tile(self._level_current, self._x_current, self._y_current)
+        if tile is None:
+            self._tile_current = self._generate_tile(self._level_current, self._x_current, self._y_current)
+        else:
+            self._tile_current = tile
+        return self._tile_current
 
     def go_west(self) -> Tile:
+        # check above and below
+        self._x_current -= 1
+        tile = self._get_tile(self._level_current, self._x_current, self._y_current)
+        if tile is None:
+            self._tile_current = self._generate_tile(self._level_current, self._x_current, self._y_current)
+        else:
+            self._tile_current = tile
+        return self._tile_current
+
+    def go_out(self) -> Tile:
+        # check neighbors, above, below
         raise NotImplementedError()
 
     def go_in(self) -> Tile:
+        # check neighbors, above, below
         raise NotImplementedError()
 
-    def go_out(self) -> Tile:
-        raise NotImplementedError()
 
-
-def main():
+def _main():
     # figure_source, axis_source = pyplot.subplots()
 
     tile = Tile(512, randomization=50)
@@ -468,6 +500,20 @@ def main():
         tile = tile._zoom_out()
 
         # tile = tile.go_south()
+
+
+def main():
+    map_tiles = Map()
+
+    for _i in range(1000):
+        map_tiles.draw()
+        map_tiles.go_north()
+        map_tiles.draw()
+        map_tiles.go_east()
+        map_tiles.draw()
+        map_tiles.go_south()
+        map_tiles.draw()
+        map_tiles.go_west()
 
 
 if __name__ == "__main__":
