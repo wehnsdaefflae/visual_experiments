@@ -1,4 +1,5 @@
 import random
+from typing import Optional
 
 import numpy
 from PIL import Image
@@ -24,7 +25,7 @@ def _rectangle(im: Image, x: int, y: int, size: int):
 
 
 class Tile:
-    def __init__(self, size: int, randomization: int = 30, value_min: int = 1, value_max: int = 255):
+    def __init__(self, size: int, randomization: int = 50, value_min: int = 1, value_max: int = 255):
         assert is_power_two(size)
         self._size = size
         self._grid = [[0 for _ in range(size)] for _ in range(size)]
@@ -40,9 +41,10 @@ class Tile:
         image = self.image()
         image = _render(image, skip=skip_render)
 
+        pyplot.pause(.00000001)
+
         pyplot.clf()
         pyplot.imshow(image, cmap="gist_earth", vmin=self._min, vmax=self._max)
-        pyplot.pause(.00000001)
 
         # pyplot.contour(im, levels=[.5, 1.])
         pyplot.draw()
@@ -154,6 +156,36 @@ class Tile:
         tile_north.create_noise()
         return tile_north
 
+    def go_east(self) -> "Tile":
+        tile_east = self._new()
+
+        for _y in range(self._size + 1):
+            value = self._get(self._size, _y)
+            tile_east._set(0, _y, value)
+
+        tile_east.create_noise()
+        return tile_east
+
+    def go_south(self) -> "Tile":
+        tile_south = self._new()
+
+        for _x in range(self._size + 1):
+            value = self._get(_x, self._size)
+            tile_south._set(_x, 0, value)
+
+        tile_south.create_noise()
+        return tile_south
+
+    def go_west(self) -> "Tile":
+        tile_west = self._new()
+
+        for _y in range(self._size + 1):
+            value = self._get(0, _y)
+            tile_west._set(self._size, _y, value)
+
+        tile_west.create_noise()
+        return tile_west
+
     def go_north_east(self, tile_north: "Tile", tile_east: "Tile") -> "Tile":
         tile_north_east = self._new()
         for _i in range(self._size + 1):
@@ -197,36 +229,6 @@ class Tile:
 
         tile_north_west.create_noise()
         return tile_north_west
-
-    def go_east(self) -> "Tile":
-        tile_east = self._new()
-
-        for _y in range(self._size + 1):
-            value = self._get(self._size, _y)
-            tile_east._set(0, _y, value)
-
-        tile_east.create_noise()
-        return tile_east
-
-    def go_south(self) -> "Tile":
-        tile_south = self._new()
-
-        for _x in range(self._size + 1):
-            value = self._get(_x, self._size)
-            tile_south._set(_x, 0, value)
-
-        tile_south.create_noise()
-        return tile_south
-
-    def go_west(self) -> "Tile":
-        tile_west = self._new()
-
-        for _y in range(self._size + 1):
-            value = self._get(0, _y)
-            tile_west._set(self._size, _y, value)
-
-        tile_west.create_noise()
-        return tile_west
 
     def flip(self) -> "Tile":
         flipped = self._new()
@@ -341,6 +343,7 @@ class Tile:
         tile_north_west = tile_mid.go_north_west(tile_north, tile_west)
         tile_new._insert_tile(tile_north_west, x=-tile_new._size // 4, y=-tile_new._size // 4)
 
+        self.draw(skip_render=True)
         return tile_new
 
 
@@ -365,19 +368,45 @@ def _render(image: Image, skip: bool = False) -> Image:
     return rendered
 
 
+class Map:
+    def __init__(self):
+        _tile_current = Tile(512)
+        self._x_current = 0
+        self._y_current = 0
+        self._level_current = 0
+        self._matrix_tile = {self._level_current: {self._y_current: {self._x_current: _tile_current}}}
+
+        _tile_current.draw(skip_render=True)
+
+    def get_tile(self, level: int, x: int, y: int) -> Optional[Tile]:
+        map_level = self._matrix_tile.get(level)
+        if map_level is None:
+            return None
+        column_tile = map_level.get(y)
+        if column_tile is None:
+            return None
+        # tile = column_tile.
+
+    def go_north(self):
+        self._y_current -= 1
+        tile = self.get_tile(self._level_current, self._x_current, self._y_current)
+
+
+
 def main():
     # figure_source, axis_source = pyplot.subplots()
 
-    tile = Tile(512)
+    tile = Tile(1024, randomization=50)
     tile.create_noise()
 
     for _i in range(1000):
-        tile.draw(skip_render=True)
+        tile.draw(skip_render=False)
 
         # tile = tile.zoom_in()
         tile = tile.zoom_out()
+        # tile = tile._zoom_out()
 
-        #tile = tile.go_south()
+        # tile = tile.go_south()
 
 
 if __name__ == "__main__":
