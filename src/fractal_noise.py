@@ -1,6 +1,6 @@
 import random
 import time
-from typing import Optional
+from typing import Optional, Tuple
 
 import numpy
 from PIL import Image
@@ -379,13 +379,63 @@ class Map:
         self._level_current = 0
         self._matrix_tile = {self._level_current: {self._y_current: {self._x_current: self._tile_current}}}
 
-    def _generate_tile(self, level: int, x: int, y: int) -> Tile:
-        tile = self._get_tile(level, x, y)
-        if tile is not None:
-            return tile
+    def _convert_coordinates_up(self, x: int, y: int) -> Tuple[int, int]:
+        return x // 2, y // 2
 
-        tile = self._tile_current.new()
+    def _convert_coordinates_dn(self, x: int, y: int) -> Tuple[int, int]:
+        return x * 2, y * 2
 
+    def _get_top(self, level: int, x: int, y: int) -> Optional[Tile]:
+        _level_top = level + 1
+        _level_tiles_top = self._matrix_tile.get(_level_top)
+        if _level_tiles_top is None:
+            return None
+
+        _x_top, _y_top = self._convert_coordinates_up(x, y)
+        _top_row = _level_tiles_top.get(_y_top)
+        if _top_row is None:
+            return None
+
+        _top_tile = _top_row.get(_x_top)
+        while _top_tile is None:
+            _level_top += 1
+            _level_tiles_top = self._matrix_tile.get(_level_top)
+            if _level_tiles_top is None:
+                break
+            _x_top, _y_top = self._convert_coordinates_up(_x_top, _y_top)
+            _top_row = _level_tiles_top.get(_y_top)
+            if _top_row is None:
+                continue
+            _top_tile = _top_row.get(_x_top)
+
+        return _top_tile
+
+    def _get_bottom(self, level: int, x: int, y: int) -> Optional[Tile]:
+        _level_bottom = level - 1
+        _level_tiles_bottom = self._matrix_tile.get(_level_bottom)
+        if _level_tiles_bottom is None:
+            return None
+
+        _x_bottom, _y_bottom = self._convert_coordinates_dn(x, y)
+        _bottom_row = _level_tiles_bottom.get(_y_bottom)
+        if _bottom_row is None:
+            return None
+
+        _bottom_tile = _bottom_row.get(_x_bottom)
+        while _bottom_tile is None:
+            _level_bottom += 1
+            _level_tiles_bottom = self._matrix_tile.get(_level_bottom)
+            if _level_tiles_bottom is None:
+                break
+            _x_bottom, _y_bottom = self._convert_coordinates_dn(_x_bottom, _y_bottom)
+            _bottom_row = _level_tiles_bottom.get(_y_bottom)
+            if _bottom_row is None:
+                continue
+            _bottom_tile = _bottom_row.get(_x_bottom)
+
+        return _bottom_tile
+
+    def _add_frame_structure(self, tile: Tile, level: int, x: int, y: int) -> Tile:
         tile_north = self._get_tile(level, x, y - 1)
         if tile_north is not None:
             for _x in range(self._tile_size + 1):
@@ -409,6 +459,12 @@ class Map:
             for _y in range(self._tile_size + 1):
                 value = tile_west.get(self._tile_size, _y)
                 tile.set(0, _y, value)
+
+        tile_bottom = self._get_bottom(level, x, y)
+        # TODO: paste into tile
+
+        tile_top = self._get_top(level, x, y)
+        # TODO: paste into tile
 
         tile.create_noise()
         self._set_tile(tile, level, x, y)
@@ -437,53 +493,37 @@ class Map:
     def draw(self):
         self._tile_current.draw(skip_render=True)
 
-    def go_north(self) -> Tile:
-        # check above and below
+    def _set_current_tile(self):
+        tile = self._get_tile(self._level_current, self._x_current, self._y_current)
+        if tile is None:
+            tile = self._tile_current.new()
+            self._tile_current = self._add_frame_structure(tile, self._level_current, self._x_current, self._y_current)
+        else:
+            self._tile_current = tile
+
+    def go_north(self):
         self._y_current -= 1
-        tile = self._get_tile(self._level_current, self._x_current, self._y_current)
-        if tile is None:
-            self._tile_current = self._generate_tile(self._level_current, self._x_current, self._y_current)
-        else:
-            self._tile_current = tile
-        return self._tile_current
+        self._set_current_tile()
 
-    def go_east(self) -> Tile:
-        # check above and below
+    def go_east(self):
         self._x_current += 1
-        tile = self._get_tile(self._level_current, self._x_current, self._y_current)
-        if tile is None:
-            self._tile_current = self._generate_tile(self._level_current, self._x_current, self._y_current)
-        else:
-            self._tile_current = tile
-        return self._tile_current
+        self._set_current_tile()
 
-    def go_south(self) -> Tile:
-        # check above and below
+    def go_south(self):
         self._y_current += 1
-        tile = self._get_tile(self._level_current, self._x_current, self._y_current)
-        if tile is None:
-            self._tile_current = self._generate_tile(self._level_current, self._x_current, self._y_current)
-        else:
-            self._tile_current = tile
-        return self._tile_current
+        self._set_current_tile()
 
-    def go_west(self) -> Tile:
-        # check above and below
+    def go_west(self):
         self._x_current -= 1
-        tile = self._get_tile(self._level_current, self._x_current, self._y_current)
-        if tile is None:
-            self._tile_current = self._generate_tile(self._level_current, self._x_current, self._y_current)
-        else:
-            self._tile_current = tile
-        return self._tile_current
+        self._set_current_tile()
 
-    def go_out(self) -> Tile:
-        # check neighbors, above, below
-        raise NotImplementedError()
+    def go_out(self):
+        self._level_current += 1
+        self._x_current, self._y_current = self._convert_coordinates_up(self._x_current, self._y_current)
 
-    def go_in(self) -> Tile:
-        # check neighbors, above, below
-        raise NotImplementedError()
+    def go_in(self):
+        self._level_current -= 1
+        self._x_current, self._y_current = self._convert_coordinates_dn(self._x_current, self._y_current)
 
 
 def _main():
