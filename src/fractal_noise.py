@@ -26,8 +26,9 @@ def _rectangle(im: Image, x: int, y: int, size: int):
 
 
 class Tile:
-    def __init__(self, size: int, randomization: int = 50, value_min: int = 1, value_max: int = 255):
+    def __init__(self, size: int, level: int, randomization: int = 50, value_min: int = 1, value_max: int = 255):
         assert is_power_two(size)
+        self._level = level
         self._size = size
         self._grid = [[0 for _ in range(size)] for _ in range(size)]
         self._edge_east = [0] * size
@@ -51,9 +52,13 @@ class Tile:
         pyplot.draw()
         pyplot.ioff()
 
+    def get_level(self) -> int:
+        return self._level
+
     def new(self):
         return Tile(
             self._size,
+            self._level,
             randomization=self._randomization,
             value_min=self._min,
             value_max=self._max)
@@ -245,7 +250,13 @@ class Tile:
         offset = self._size // 4
         edge_zoom = self._size // 2
 
-        tile_expand = self.new()
+        tile_expand = Tile(
+            self._size,
+            self._level - 1,
+            randomization=self._randomization,
+            value_min=self._min,
+            value_max=self._max
+        )
 
         for _x in range(edge_zoom):
             _x_source = _x + offset
@@ -264,6 +275,7 @@ class Tile:
     def _shrink(self) -> "Tile":
         tile_shrunk = Tile(
             self._size // 2,
+            self._level + 1,
             randomization=self._randomization,
             value_min=self._min,
             value_max=self._max)
@@ -315,7 +327,13 @@ class Tile:
         return tile_new
 
     def _zoom_out(self) -> "Tile":
-        tile_new = self.new()
+        tile_new = Tile(
+            self._size,
+            self._level + 1,
+            randomization=self._randomization,
+            value_min=self._min,
+            value_max=self._max
+        )
 
         tile_mid = self._shrink()
         tile_new._insert_tile(tile_mid, x=tile_new._size // 4, y=tile_new._size // 4)
@@ -372,12 +390,18 @@ def _render(image: Image, skip: bool = False) -> Image:
 class Map:
     def __init__(self, tile_size: int = 512):
         self._tile_size = tile_size
-        self._tile_current = Tile(tile_size)
+        self._tile_current = Tile(tile_size, 0)
         self._tile_current.create_noise()
         self._x_current = 0
         self._y_current = 0
         self._level_current = 0
-        self._matrix_tile = {self._level_current: {self._y_current: {self._x_current: self._tile_current}}}
+        self._matrix_tile = {
+            self._level_current: {
+                self._y_current: {
+                    self._x_current: self._tile_current
+                }
+            }
+        }
 
     def _convert_coordinates_up(self, x: int, y: int) -> Tuple[int, int]:
         return x // 2, y // 2
@@ -461,10 +485,14 @@ class Map:
                 tile.set(0, _y, value)
 
         tile_bottom = self._get_bottom(level, x, y)
-        # TODO: paste into tile
+        if tile_bottom is not None:
+            pass
+            # TODO: paste into tile
 
         tile_top = self._get_top(level, x, y)
-        # TODO: paste into tile
+        if tile_top is not None:
+            pass
+            # TODO: paste into tile
 
         tile.create_noise()
         self._set_tile(tile, level, x, y)
