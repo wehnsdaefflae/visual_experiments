@@ -26,9 +26,8 @@ def _rectangle(im: Image, x: int, y: int, size: int):
 
 
 class Tile:
-    def __init__(self, size: int, level: int, randomization: int = 50, value_min: int = 1, value_max: int = 255):
+    def __init__(self, size: int, randomization: int = 50, value_min: int = 1, value_max: int = 255):
         assert is_power_two(size)
-        self._level = level
         self._size = size
         self._grid = [[0 for _ in range(size)] for _ in range(size)]
         self._edge_east = [0] * size
@@ -52,13 +51,9 @@ class Tile:
         pyplot.draw()
         pyplot.ioff()
 
-    def get_level(self) -> int:
-        return self._level
-
     def new(self):
         return Tile(
             self._size,
-            self._level,
             randomization=self._randomization,
             value_min=self._min,
             value_max=self._max)
@@ -250,13 +245,7 @@ class Tile:
         offset = self._size // 4
         edge_zoom = self._size // 2
 
-        tile_expand = Tile(
-            self._size,
-            self._level - 1,
-            randomization=self._randomization,
-            value_min=self._min,
-            value_max=self._max
-        )
+        tile_expand = self.new()
 
         for _x in range(edge_zoom):
             _x_source = _x + offset
@@ -272,10 +261,9 @@ class Tile:
         tile_expand.create_noise()
         return tile_expand
 
-    def _shrink(self) -> "Tile":
+    def shrink(self) -> "Tile":
         tile_shrunk = Tile(
             self._size // 2,
-            self._level + 1,
             randomization=self._randomization,
             value_min=self._min,
             value_max=self._max)
@@ -305,7 +293,7 @@ class Tile:
 
         return tile_shrunk
 
-    def _insert_tile(self, tile: "Tile", x: int = 0, y: int = 0):
+    def insert_tile(self, tile: "Tile", x: int = 0, y: int = 0):
         for _x in range(tile._size + 1):
             x_total = x + _x
             if self._size < x_total or x_total < 0:
@@ -320,47 +308,41 @@ class Tile:
     def zoom_out(self) -> "Tile":
         tile_new = self.new()
 
-        tile_mid = self._shrink()
-        tile_new._insert_tile(tile_mid, x=tile_new._size // 4, y=tile_new._size // 4)
+        tile_mid = self.shrink()
+        tile_new.insert_tile(tile_mid, x=tile_new._size // 4, y=tile_new._size // 4)
 
         tile_new.create_noise()
         return tile_new
 
     def _zoom_out(self) -> "Tile":
-        tile_new = Tile(
-            self._size,
-            self._level + 1,
-            randomization=self._randomization,
-            value_min=self._min,
-            value_max=self._max
-        )
+        tile_new = self.new()
 
-        tile_mid = self._shrink()
-        tile_new._insert_tile(tile_mid, x=tile_new._size // 4, y=tile_new._size // 4)
+        tile_mid = self.shrink()
+        tile_new.insert_tile(tile_mid, x=tile_new._size // 4, y=tile_new._size // 4)
 
         tile_north = tile_mid.go_north()
-        tile_new._insert_tile(tile_north, x=tile_new._size // 4, y=-tile_new._size // 4)
+        tile_new.insert_tile(tile_north, x=tile_new._size // 4, y=-tile_new._size // 4)
 
         tile_east = tile_mid.go_east()
-        tile_new._insert_tile(tile_east, x=3 * tile_new._size // 4, y=tile_new._size // 4)
+        tile_new.insert_tile(tile_east, x=3 * tile_new._size // 4, y=tile_new._size // 4)
 
         tile_north_east = tile_mid.go_north_east(tile_north, tile_east)
-        tile_new._insert_tile(tile_north_east, x=3 * tile_new._size // 4, y=-tile_new._size // 4)
+        tile_new.insert_tile(tile_north_east, x=3 * tile_new._size // 4, y=-tile_new._size // 4)
 
         tile_south = tile_mid.go_south()
-        tile_new._insert_tile(tile_south, x=tile_new._size // 4, y=3 * tile_new._size // 4)
+        tile_new.insert_tile(tile_south, x=tile_new._size // 4, y=3 * tile_new._size // 4)
 
         tile_south_east = tile_mid.go_south_east(tile_south, tile_east)
-        tile_new._insert_tile(tile_south_east, x=3 * tile_new._size // 4, y=3 * tile_new._size // 4)
+        tile_new.insert_tile(tile_south_east, x=3 * tile_new._size // 4, y=3 * tile_new._size // 4)
 
         tile_west = tile_mid.go_west()
-        tile_new._insert_tile(tile_west, x=-tile_new._size // 4, y=tile_new._size // 4)
+        tile_new.insert_tile(tile_west, x=-tile_new._size // 4, y=tile_new._size // 4)
 
         tile_south_west = tile_mid.go_south_west(tile_south, tile_west)
-        tile_new._insert_tile(tile_south_west, x=-tile_new._size // 4, y=3 * tile_new._size // 4)
+        tile_new.insert_tile(tile_south_west, x=-tile_new._size // 4, y=3 * tile_new._size // 4)
 
         tile_north_west = tile_mid.go_north_west(tile_north, tile_west)
-        tile_new._insert_tile(tile_north_west, x=-tile_new._size // 4, y=-tile_new._size // 4)
+        tile_new.insert_tile(tile_north_west, x=-tile_new._size // 4, y=-tile_new._size // 4)
 
         self.draw(skip_render=True)
         return tile_new
@@ -434,7 +416,7 @@ class Map:
 
         return _top_tile
 
-    def _get_bottom(self, level: int, x: int, y: int) -> Optional[Tile]:
+    def _get_bottom(self, level: int, x: int, y: int) -> Optional[Tuple[Tuple[Tile, ...], ...]]:
         _level_bottom = level - 1
         _level_tiles_bottom = self._matrix_tile.get(_level_bottom)
         if _level_tiles_bottom is None:
@@ -459,7 +441,46 @@ class Map:
 
         return _bottom_tile
 
+    def _get_base_tiles(self, x: int, y: int) -> Tile:
+        tile = self._tile_current.new()
+        self._bottom_recursion(tile, self._level_current - 1, x, y, self._tile_size)
+        return tile
+
+    def _bottom_recursion(self, tile: Tile, level: int, x: int, y: int, size: int):
+        _level_map = self._matrix_tile.get(level)
+        if _level_map is not None:
+            # write tiles on this level into tile
+            half_size = size // 2
+
+            tile_nw = self._get_tile(level, x, y)
+            tile.insert_tile(tile_nw.shrink(), 0, 0)
+
+            tile_ne = self._get_tile(level, x + 1, y)
+            tile.insert_tile(tile_ne.shrink(), half_size, 0)
+
+            tile_se = self._get_tile(level, x + 1, y + 1)
+            tile.insert_tile(tile_se.shrink(), half_size, half_size)
+
+            tile_sw = self._get_tile(level, x, y + 1)
+            tile.insert_tile(tile_sw.shrink(), 0, half_size)
+
+            # recurse below
+            self._bottom_recursion(tile, level - 1, x, y, half_size)
+
+
+
+
     def _add_frame_structure(self, tile: Tile, level: int, x: int, y: int) -> Tile:
+        tile_bottom = self._get_bottom(level, x, y)
+        if tile_bottom is not None:
+            # TODO: paste into tile
+            pass
+        else:
+            tile_top = self._get_top(level, x, y)
+            if tile_top is not None:
+                # TODO: paste into tile
+                pass
+
         tile_north = self._get_tile(level, x, y - 1)
         if tile_north is not None:
             for _x in range(self._tile_size + 1):
@@ -483,16 +504,6 @@ class Map:
             for _y in range(self._tile_size + 1):
                 value = tile_west.get(self._tile_size, _y)
                 tile.set(0, _y, value)
-
-        tile_bottom = self._get_bottom(level, x, y)
-        if tile_bottom is not None:
-            pass
-            # TODO: paste into tile
-
-        tile_top = self._get_top(level, x, y)
-        if tile_top is not None:
-            pass
-            # TODO: paste into tile
 
         tile.create_noise()
         self._set_tile(tile, level, x, y)
