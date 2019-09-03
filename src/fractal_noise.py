@@ -241,7 +241,7 @@ class Tile:
 
         return flipped
 
-    def _stretch(self) -> "Tile":
+    def stretch(self) -> "Tile":
         offset = self._size // 4
         edge_zoom = self._size // 2
 
@@ -257,7 +257,7 @@ class Tile:
         return tile_expand
 
     def zoom_in(self) -> "Tile":
-        tile_expand = self._stretch()
+        tile_expand = self.stretch()
         tile_expand.create_noise()
         return tile_expand
 
@@ -293,6 +293,24 @@ class Tile:
 
         return tile_shrunk
 
+    def extract_tile(self, x_offset: int, y_offset: int, size: int) -> "Tile":
+        tile = Tile(
+            size,
+            randomization=self._randomization,
+            value_min=self._min,
+            value_max=self._max
+        )
+
+        assert x_offset + size < self._size
+        assert y_offset + size < self._size
+
+        for _x in range(size + 1):
+            for _y in range(size + 1):
+                value = self.get(x_offset + _x, y_offset + _y)
+                tile.set(_x, _y, value)
+
+        return tile
+
     def insert_tile(self, tile: "Tile", x: int = 0, y: int = 0):
         for _x in range(tile._size + 1):
             x_total = x + _x
@@ -303,7 +321,8 @@ class Tile:
                 if self._size < y_total or y_total < 0:
                     continue
                 value = tile.get(_x, _y)
-                self.set(x_total, y_total, value)
+                if 0 < value:
+                    self.set(x_total, y_total, value)
 
     def zoom_out(self) -> "Tile":
         tile_new = self.new()
@@ -344,7 +363,6 @@ class Tile:
         tile_north_west = tile_mid.go_north_west(tile_north, tile_west)
         tile_new.insert_tile(tile_north_west, x=-tile_new._size // 4, y=-tile_new._size // 4)
 
-        self.draw(skip_render=True)
         return tile_new
 
 
@@ -370,9 +388,11 @@ def _render(image: Image, skip: bool = False) -> Image:
 
 
 class Map:
-    def __init__(self, tile_size: int = 512):
+    def __init__(self, tile_size: int = 512, randomization: int = 30, value_min: int = 1, value_max: int = 255):
         self._tile_size = tile_size
-        self._tile_current = Tile(tile_size, 0)
+        self._randomization = randomization
+        self._value_min, self._value_max = value_min, value_max
+        self._tile_current = Tile(tile_size, randomization=randomization, value_min=value_min, value_max=value_max)
         self._tile_current.create_noise()
         self._x_current = 0
         self._y_current = 0
@@ -391,95 +411,52 @@ class Map:
     def _convert_coordinates_dn(self, x: int, y: int) -> Tuple[int, int]:
         return x * 2, y * 2
 
-    def _get_top(self, level: int, x: int, y: int) -> Optional[Tile]:
-        _level_top = level + 1
-        _level_tiles_top = self._matrix_tile.get(_level_top)
-        if _level_tiles_top is None:
-            return None
+    def _roof_tiles(self, tile: Tile, level: int, x: int, y: int):
+        level_above = level + 1
+        half_size = self._tile_size // 2
+        _x_top = x // 2
+        _y_top = y // 2
 
-        _x_top, _y_top = self._convert_coordinates_up(x, y)
-        _top_row = _level_tiles_top.get(_y_top)
-        if _top_row is None:
-            return None
+        if level_above in self._matrix_tile:
+            self._roof_tiles(tile, level_above, _x_top, _y_top)
 
-        _top_tile = _top_row.get(_x_top)
-        while _top_tile is None:
-            _level_top += 1
-            _level_tiles_top = self._matrix_tile.get(_level_top)
-            if _level_tiles_top is None:
-                break
-            _x_top, _y_top = self._convert_coordinates_up(_x_top, _y_top)
-            _top_row = _level_tiles_top.get(_y_top)
-            if _top_row is None:
-                continue
-            _top_tile = _top_row.get(_x_top)
+        tile_top = self._get_tile(level_above, _x_top, _y_top)
+        if tile_top is not None:
+            snippet = tile_top.extract_tile((x % 2) * half_size, (y % 2) * half_size, half_size)  # coordinates are wrong
+            tile.insert_tile(snippet.stretch(), 0, 0)
 
-        return _top_tile
+    def _base_tiles(self, tile: Tile, level: int, x: int, y: int):
+        level_below = level - 1
+        half_size = self._tile_size // 2
+        _x_low = x * 2
+        _y_low = y * 2
 
-    def _get_bottom(self, level: int, x: int, y: int) -> Optional[Tuple[Tuple[Tile, ...], ...]]:
-        _level_bottom = level - 1
-        _level_tiles_bottom = self._matrix_tile.get(_level_bottom)
-        if _level_tiles_bottom is None:
-            return None
-
-        _x_bottom, _y_bottom = self._convert_coordinates_dn(x, y)
-        _bottom_row = _level_tiles_bottom.get(_y_bottom)
-        if _bottom_row is None:
-            return None
-
-        _bottom_tile = _bottom_row.get(_x_bottom)
-        while _bottom_tile is None:
-            _level_bottom += 1
-            _level_tiles_bottom = self._matrix_tile.get(_level_bottom)
-            if _level_tiles_bottom is None:
-                break
-            _x_bottom, _y_bottom = self._convert_coordinates_dn(_x_bottom, _y_bottom)
-            _bottom_row = _level_tiles_bottom.get(_y_bottom)
-            if _bottom_row is None:
-                continue
-            _bottom_tile = _bottom_row.get(_x_bottom)
-
-        return _bottom_tile
-
-    def _get_base_tiles(self, x: int, y: int) -> Tile:
-        tile = self._tile_current.new()
-        self._bottom_recursion(tile, self._level_current - 1, x, y, self._tile_size)
-        return tile
-
-    def _bottom_recursion(self, tile: Tile, level: int, x: int, y: int, size: int):
-        _level_map = self._matrix_tile.get(level)
-        if _level_map is not None:
-            # write tiles on this level into tile
-            half_size = size // 2
-
-            tile_nw = self._get_tile(level, x, y)
+        tile_nw = self._get_tile(level_below, _x_low, _y_low)
+        if tile_nw is not None:
             tile.insert_tile(tile_nw.shrink(), 0, 0)
 
-            tile_ne = self._get_tile(level, x + 1, y)
+        tile_ne = self._get_tile(level_below, _x_low + 1, _y_low)
+        if tile_ne is not None:
             tile.insert_tile(tile_ne.shrink(), half_size, 0)
 
-            tile_se = self._get_tile(level, x + 1, y + 1)
+        tile_se = self._get_tile(level_below, _x_low + 1, _y_low + 1)
+        if tile_se is not None:
             tile.insert_tile(tile_se.shrink(), half_size, half_size)
 
-            tile_sw = self._get_tile(level, x, y + 1)
+        tile_sw = self._get_tile(level_below, _x_low, _y_low + 1)
+        if tile_sw is not None:
             tile.insert_tile(tile_sw.shrink(), 0, half_size)
 
-            # recurse below
-            self._bottom_recursion(tile, level - 1, x, y, half_size)
+        if level_below in self._matrix_tile:
+            self._base_tiles(tile, level_below, _x_low, _y_low)
+            self._base_tiles(tile, level_below, _x_low + 1, _y_low)
+            self._base_tiles(tile, level_below, _x_low + 1, _y_low + 1)
+            self._base_tiles(tile, level_below, _x_low, _y_low + 1)
 
-
-
-
-    def _add_frame_structure(self, tile: Tile, level: int, x: int, y: int) -> Tile:
-        tile_bottom = self._get_bottom(level, x, y)
-        if tile_bottom is not None:
-            # TODO: paste into tile
-            pass
-        else:
-            tile_top = self._get_top(level, x, y)
-            if tile_top is not None:
-                # TODO: paste into tile
-                pass
+    def _create_tile(self, level: int, x: int, y: int) -> Tile:
+        tile = Tile(self._tile_size, randomization=self._randomization, value_min=self._value_min, value_max=self._value_max)
+        self._roof_tiles(tile, level, x, y)
+        self._base_tiles(tile, level, x, y)
 
         tile_north = self._get_tile(level, x, y - 1)
         if tile_north is not None:
@@ -506,7 +483,6 @@ class Map:
                 tile.set(0, _y, value)
 
         tile.create_noise()
-        self._set_tile(tile, level, x, y)
         return tile
 
     def _set_tile(self, tile: Tile, level: int, x: int, y: int):
@@ -532,37 +508,37 @@ class Map:
     def draw(self):
         self._tile_current.draw(skip_render=True)
 
-    def _set_current_tile(self):
-        tile = self._get_tile(self._level_current, self._x_current, self._y_current)
-        if tile is None:
-            tile = self._tile_current.new()
-            self._tile_current = self._add_frame_structure(tile, self._level_current, self._x_current, self._y_current)
-        else:
-            self._tile_current = tile
+    def _update_tile(self, level: int, x: int, y: int):
+        self._tile_current = self._get_tile(level, x, y)
+        if self._tile_current is None:
+            self._tile_current = self._create_tile(level, x, y)
+            self._set_tile(self._tile_current, level, x, y)
 
     def go_north(self):
         self._y_current -= 1
-        self._set_current_tile()
+        self._update_tile(self._level_current, self._x_current, self._y_current)
 
     def go_east(self):
         self._x_current += 1
-        self._set_current_tile()
+        self._update_tile(self._level_current, self._x_current, self._y_current)
 
     def go_south(self):
         self._y_current += 1
-        self._set_current_tile()
+        self._update_tile(self._level_current, self._x_current, self._y_current)
 
     def go_west(self):
         self._x_current -= 1
-        self._set_current_tile()
+        self._update_tile(self._level_current, self._x_current, self._y_current)
 
     def go_out(self):
         self._level_current += 1
         self._x_current, self._y_current = self._convert_coordinates_up(self._x_current, self._y_current)
+        self._update_tile(self._level_current, self._x_current, self._y_current)
 
     def go_in(self):
         self._level_current -= 1
         self._x_current, self._y_current = self._convert_coordinates_dn(self._x_current, self._y_current)
+        self._update_tile(self._level_current, self._x_current, self._y_current)
 
 
 def _main():
@@ -585,15 +561,39 @@ def main():
     map_tiles = Map()
 
     for _i in range(1000):
+        """
+        print("north")
         map_tiles.draw()
         map_tiles.go_north()
+        time.sleep(1.)
+
+        print("east")
         map_tiles.draw()
         map_tiles.go_east()
+        time.sleep(1.)
+
+        print("south")
         map_tiles.draw()
         map_tiles.go_south()
+        time.sleep(1.)
+
+        print("west")
         map_tiles.draw()
         map_tiles.go_west()
+        time.sleep(1.)
+
+        print("out")
+        map_tiles.draw()
+        map_tiles.go_out()
+        time.sleep(1.)
+        """
+
+        print("in")
+        map_tiles.draw()
+        map_tiles.go_in()
+        time.sleep(1.)
+        # """
 
 
 if __name__ == "__main__":
-    main()
+    _main()
