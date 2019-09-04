@@ -627,16 +627,12 @@ def main():
         """
 
         for _j in range(10):
-            print("out")
-            map_tiles.draw()
-            map_tiles.go_in()
-            #time.sleep(1.)
-
-        for _j in range(10):
-            print("in")
             map_tiles.draw()
             map_tiles.go_out()
-            #time.sleep(1.)
+
+        for _j in range(10):
+            map_tiles.draw()
+            map_tiles.go_in()
 
 
 if __name__ == "__main__":
