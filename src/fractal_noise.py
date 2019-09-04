@@ -36,7 +36,7 @@ class Tile:
         self._max = value_max
         self._randomization = randomization
 
-    def draw(self, skip_render: bool = False):
+    def draw(self, skip_render: bool = True):
         pyplot.ion()
 
         image = self.image()
@@ -241,7 +241,7 @@ class Tile:
 
         return flipped
 
-    def stretch(self) -> "Tile":
+    def stretch_(self) -> "Tile":
         offset = self._size // 4
         edge_zoom = self._size // 2
 
@@ -252,6 +252,20 @@ class Tile:
             _x_target = _x * 2
             for _y in range(edge_zoom):
                 value = self.get(_x_source, _y + offset)
+                tile_expand.set(_x_target, _y * 2, value)
+
+        return tile_expand
+
+    def stretch(self, east: bool, south: bool) -> "Tile":
+        edge_zoom = self._size // 2
+
+        tile_expand = self.new()
+
+        for _x in range(edge_zoom):
+            _x_source = _x + int(east) * edge_zoom
+            _x_target = _x * 2
+            for _y in range(edge_zoom):
+                value = self.get(_x_source, _y + int(south) * edge_zoom)
                 tile_expand.set(_x_target, _y * 2, value)
 
         return tile_expand
@@ -384,6 +398,7 @@ def _render(image: Image, skip: bool = False) -> Image:
         #            row_a[i] = 1
         rendered = Image.fromarray(data_a, mode="L")
     _rectangle(rendered, width // 4, height // 4, width // 2)
+    # _rectangle(rendered, 0, 0, width // 2)
     return rendered
 
 
@@ -422,8 +437,9 @@ class Map:
 
         tile_top = self._get_tile(level_above, _x_top, _y_top)
         if tile_top is not None:
-            snippet = tile_top.extract_tile((x % 2) * half_size, (y % 2) * half_size, half_size)  # coordinates are wrong
-            tile.insert_tile(snippet.stretch(), 0, 0)
+            # snippet = tile_top.extract_tile((x % 2) * half_size, (y % 2) * half_size, half_size)  # coordinates are wrong
+            snippet = tile_top.stretch(bool(x % 2), bool(y % 2))
+            tile.insert_tile(snippet, 0, 0)
 
     def _base_tiles(self, tile: Tile, level: int, x: int, y: int):
         level_below = level - 1
@@ -431,27 +447,31 @@ class Map:
         _x_low = x * 2
         _y_low = y * 2
 
-        tile_nw = self._get_tile(level_below, _x_low, _y_low)
-        if tile_nw is not None:
-            tile.insert_tile(tile_nw.shrink(), 0, 0)
-
-        tile_ne = self._get_tile(level_below, _x_low + 1, _y_low)
-        if tile_ne is not None:
-            tile.insert_tile(tile_ne.shrink(), half_size, 0)
-
-        tile_se = self._get_tile(level_below, _x_low + 1, _y_low + 1)
-        if tile_se is not None:
-            tile.insert_tile(tile_se.shrink(), half_size, half_size)
-
-        tile_sw = self._get_tile(level_below, _x_low, _y_low + 1)
-        if tile_sw is not None:
-            tile.insert_tile(tile_sw.shrink(), 0, half_size)
-
         if level_below in self._matrix_tile:
             self._base_tiles(tile, level_below, _x_low, _y_low)
             self._base_tiles(tile, level_below, _x_low + 1, _y_low)
             self._base_tiles(tile, level_below, _x_low + 1, _y_low + 1)
             self._base_tiles(tile, level_below, _x_low, _y_low + 1)
+
+        tile_nw = self._get_tile(level_below, _x_low, _y_low)
+        if tile_nw is not None:
+            shrunk = tile_nw.shrink()
+            tile.insert_tile(shrunk, 0, 0)
+
+        tile_ne = self._get_tile(level_below, _x_low + 1, _y_low)
+        if tile_ne is not None:
+            shrunk = tile_ne.shrink()
+            tile.insert_tile(shrunk, half_size, 0)
+
+        tile_se = self._get_tile(level_below, _x_low + 1, _y_low + 1)
+        if tile_se is not None:
+            shrunk = tile_se.shrink()
+            tile.insert_tile(shrunk, half_size, half_size)
+
+        tile_sw = self._get_tile(level_below, _x_low, _y_low + 1)
+        if tile_sw is not None:
+            shrunk = tile_sw.shrink()
+            tile.insert_tile(shrunk, 0, half_size)
 
     def _create_tile(self, level: int, x: int, y: int) -> Tile:
         tile = Tile(self._tile_size, randomization=self._randomization, value_min=self._value_min, value_max=self._value_max)
@@ -506,7 +526,30 @@ class Map:
         return column_tile.get(x)
 
     def draw(self):
-        self._tile_current.draw(skip_render=True)
+        display = Tile(self._tile_size * 2, randomization=self._randomization, value_min=self._value_min, value_max=self._value_max)
+
+        tile_nw = self._get_tile(self._level_current, self._x_current - 1, self._y_current - 1)
+        if tile_nw is None:
+            tile_nw = self._create_tile(self._level_current, self._x_current - 1, self._y_current - 1)
+            self._set_tile(tile_nw, self._level_current, self._x_current - 1, self._y_current - 1)
+        display.insert_tile(tile_nw, x=0, y=0)
+
+        tile_ne = self._get_tile(self._level_current, self._x_current, self._y_current - 1)
+        if tile_ne is None:
+            tile_ne = self._create_tile(self._level_current, self._x_current, self._y_current - 1)
+            self._set_tile(tile_ne, self._level_current, self._x_current, self._y_current - 1)
+        display.insert_tile(tile_ne, x=self._tile_size, y=0)
+
+        tile_se = self._tile_current
+        display.insert_tile(tile_se, x=self._tile_size, y=self._tile_size)
+
+        tile_sw = self._get_tile(self._level_current, self._x_current - 1, self._y_current)
+        if tile_sw is None:
+            tile_sw = self._create_tile(self._level_current, self._x_current - 1, self._y_current)
+            self._set_tile(tile_sw, self._level_current, self._x_current - 1, self._y_current)
+        display.insert_tile(tile_sw, x=0, y=self._tile_size)
+
+        display.draw(skip_render=True)
 
     def _update_tile(self, level: int, x: int, y: int):
         self._tile_current = self._get_tile(level, x, y)
@@ -544,7 +587,7 @@ class Map:
 def _main():
     # figure_source, axis_source = pyplot.subplots()
 
-    tile = Tile(512, randomization=50)
+    tile = Tile(256, randomization=50)
     tile.create_noise()
 
     for _i in range(1000):
@@ -558,7 +601,7 @@ def _main():
 
 
 def main():
-    map_tiles = Map()
+    map_tiles = Map(tile_size=256)
 
     for _i in range(1000):
         """
@@ -581,19 +624,20 @@ def main():
         map_tiles.draw()
         map_tiles.go_west()
         time.sleep(1.)
-
-        print("out")
-        map_tiles.draw()
-        map_tiles.go_out()
-        time.sleep(1.)
         """
 
-        print("in")
-        map_tiles.draw()
-        map_tiles.go_in()
-        time.sleep(1.)
-        # """
+        for _j in range(10):
+            print("out")
+            map_tiles.draw()
+            map_tiles.go_in()
+            #time.sleep(1.)
+
+        for _j in range(10):
+            print("in")
+            map_tiles.draw()
+            map_tiles.go_out()
+            #time.sleep(1.)
 
 
 if __name__ == "__main__":
-    _main()
+    main()
