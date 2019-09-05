@@ -14,13 +14,13 @@ def _render(image: Image, skip: bool = False) -> Image:
     if not skip:
         filtered_a = image.filter(ImageFilter.GaussianBlur(radius=2))
         # filtered_a = filtered_a.filter(ImageFilter.CONTOUR)
-        filtered_b = image.filter(ImageFilter.GaussianBlur(radius=5))
+        filtered_b = image.filter(ImageFilter.GaussianBlur(radius=3))
         data_a = numpy.array(filtered_a)
-        #data_b = numpy.array(filtered_b)
-        #for row_a, row_b in zip(data_a, data_b):
-        #    for i, value_b in enumerate(row_b):
-        #        if value_b < 128:
-        #            row_a[i] = 1
+        data_b = numpy.array(filtered_b)
+        for row_a, row_b in zip(data_a, data_b):
+            for i, value_b in enumerate(row_b):
+                if value_b < 92:
+                    row_a[i] = 1
         rendered = Image.fromarray(data_a, mode="L")
     _rectangle(rendered, width // 4, height // 4, width // 2)
     return rendered
@@ -153,6 +153,12 @@ class Tile:
             row[x - 1] = value
 
     def _randomize(self, value: int) -> int:
+        value_r = value + random.randint(-self._randomization, self._randomization)
+        if self._max < value_r:
+            return 2 * self._max - value_r
+        if value_r < self._min:
+            return 2 * self._min - value_r
+        return value_r
         return min(self._max, max(self._min, value + random.randint(-self._randomization, self._randomization)))
 
     def _set_intermediates(self, x_origin: int, y_origin: int, window: int):
@@ -403,8 +409,29 @@ class Map:
 def main():
     map_tiles = Map(tile_size=256)
 
+    level = 0
+    x = 0
+    y = 0
+
     for _i in range(1000):
-        map_tiles.draw(level=_i)
+        for _ in range(10):
+            map_tiles.draw(level=level, x=x, y=y)
+            x += 1
+        for _ in range(10):
+            map_tiles.draw(level=level, x=x, y=y)
+            y += 1
+        for _ in range(10):
+            map_tiles.draw(level=level, x=x, y=y)
+            x -= 1
+        for _ in range(10):
+            map_tiles.draw(level=level, x=x, y=y)
+            y -= 1
+        for _ in range(10):
+            map_tiles.draw(level=level, x=x, y=y)
+            level += 1
+        for _ in range(10):
+            map_tiles.draw(level=level, x=x, y=y)
+            level -= 1
 
 
 if __name__ == "__main__":
