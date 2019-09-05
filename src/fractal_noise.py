@@ -8,6 +8,24 @@ from PIL import ImageFilter
 from matplotlib import pyplot
 
 
+def _render(image: Image, skip: bool = False) -> Image:
+    rendered = image.copy()
+    width, height = rendered.size
+    if not skip:
+        filtered_a = image.filter(ImageFilter.GaussianBlur(radius=2))
+        # filtered_a = filtered_a.filter(ImageFilter.CONTOUR)
+        filtered_b = image.filter(ImageFilter.GaussianBlur(radius=5))
+        data_a = numpy.array(filtered_a)
+        #data_b = numpy.array(filtered_b)
+        #for row_a, row_b in zip(data_a, data_b):
+        #    for i, value_b in enumerate(row_b):
+        #        if value_b < 128:
+        #            row_a[i] = 1
+        rendered = Image.fromarray(data_a, mode="L")
+    _rectangle(rendered, width // 4, height // 4, width // 2)
+    return rendered
+
+
 def is_power_two(n: int) -> bool:
     return n and (not(n & (n - 1)))
 
@@ -25,21 +43,41 @@ def _rectangle(im: Image, x: int, y: int, size: int):
                 im.putpixel((x + size, _v + y), 255)
 
 
+class Corner:
+    def __init__(self, value: int):
+        self.value = value
+
+
+class Edge:
+    def __init__(self, size: int):
+        self.values = [0] * size
+
+
 class Tile:
     def __init__(self, size: int, randomization: int = 50, value_min: int = 1, value_max: int = 255):
         assert is_power_two(size)
         self._size = size
-        self._grid = [[0 for _ in range(size)] for _ in range(size)]
-        self._edge_east = [0] * size
-        self._edge_south = [0] * (size + 1)
         self._min = value_min
         self._max = value_max
         self._randomization = randomization
 
+        self._grid = [[0 for _ in range(size - 1)] for _ in range(size - 1)]
+
+        self.edge_north = Edge(size - 1)
+        self.edge_east = Edge(size - 1)
+        self.edge_south = Edge(size - 1)
+        self.edge_west = Edge(size - 1)
+
+        self.corner_northwest = Corner(0)
+        self.corner_northeast = Corner(0)
+        self.corner_southeast = Corner(0)
+        self.corner_southwest = Corner(0)
+
     def draw(self, skip_render: bool = True):
         pyplot.ion()
 
-        image = self.image()
+        window = [[self.corner_northwest.value] + self.edge_north.values] + [[self.edge_west.values[_y]] + row for _y, row in enumerate(self._grid)]
+        image = Image.fromarray(numpy.uint8(window), "L")
         image = _render(image, skip=skip_render)
 
         pyplot.pause(.00000001)
@@ -47,21 +85,8 @@ class Tile:
         pyplot.clf()
         pyplot.imshow(image, cmap="gist_earth", vmin=self._min, vmax=self._max)
 
-        # pyplot.contour(im, levels=[.5, 1.])
         pyplot.draw()
         pyplot.ioff()
-
-    def get_edge_north(self) -> Sequence[int]:
-        return self._grid[0] + [self._edge_east[0]]
-
-    def get_edge_east(self) -> Sequence[int]:
-        return self._edge_east + [self._edge_south[-1]]
-
-    def get_edge_south(self) -> Sequence[int]:
-        return self._edge_south
-
-    def get_edge_west(self) -> Sequence[int]:
-        return [row[0] for row in self._grid] + [self._edge_south[0]]
 
     def new(self):
         return Tile(
@@ -74,28 +99,58 @@ class Tile:
         assert self._size >= x >= 0
         assert self._size >= y >= 0
 
-        if y == self._size:
-            return self._edge_south[x]
+        if x == 0:
+            if y == 0:
+                return self.corner_northwest.value
+            if y == self._size:
+                return self.corner_southwest.value
+            return self.edge_west.values[y - 1]
 
         if x == self._size:
-            return self._edge_east[y]
+            if y == 0:
+                return self.corner_northeast.value
+            if y == self._size:
+                return self.corner_southeast.value
+            return self.edge_east.values[y - 1]
 
-        return self._grid[y][x]
+        if y == 0:
+            return self.edge_north.values[x - 1]
+
+        if y == self._size:
+            return self.edge_south.values[x - 1]
+
+        return self._grid[y - 1][x - 1]
 
     def set(self, x: int, y: int, value: int):
         assert self._size >= x >= 0
         assert self._size >= y >= 0
         assert self._max >= value >= self._min
 
-        if y == self._size:
-            self._edge_south[x] = value
+        if x == 0:
+            if y == 0:
+                self.corner_northwest.value = value
+            elif y == self._size:
+                self.corner_southwest.value = value
+            else:
+                self.edge_west.values[y - 1] = value
 
         elif x == self._size:
-            self._edge_east[y] = value
+            if y == 0:
+                self.corner_northeast.value = value
+            elif y == self._size:
+                self.corner_southeast.value = value
+            else:
+                self.edge_east.values[y - 1] = value
+
+        elif y == 0:
+            self.edge_north.values[x - 1] = value
+
+        elif y == self._size:
+            self.edge_south.values[x - 1] = value
 
         else:
-            row = self._grid[y]
-            row[x] = value
+            row = self._grid[y - 1]
+            row[x - 1] = value
 
     def _randomize(self, value: int) -> int:
         return min(self._max, max(self._min, value + random.randint(-self._randomization, self._randomization)))
@@ -156,135 +211,18 @@ class Tile:
 
             window //= 2
 
-    def image(self) -> Image:
-        return Image.fromarray(numpy.uint8(self._grid), "L")
-
-    def go_north(self) -> "Tile":
-        tile_north = self.new()
-
-        for _x in range(self._size + 1):
-            value = self.get(_x, 0)
-            tile_north.set(_x, self._size, value)
-
-        tile_north.create_noise()
-        return tile_north
-
-    def go_east(self) -> "Tile":
-        tile_east = self.new()
-
-        for _y in range(self._size + 1):
-            value = self.get(self._size, _y)
-            tile_east.set(0, _y, value)
-
-        tile_east.create_noise()
-        return tile_east
-
-    def go_south(self) -> "Tile":
-        tile_south = self.new()
-
-        for _x in range(self._size + 1):
-            value = self.get(_x, self._size)
-            tile_south.set(_x, 0, value)
-
-        tile_south.create_noise()
-        return tile_south
-
-    def go_west(self) -> "Tile":
-        tile_west = self.new()
-
-        for _y in range(self._size + 1):
-            value = self.get(0, _y)
-            tile_west.set(self._size, _y, value)
-
-        tile_west.create_noise()
-        return tile_west
-
-    def go_north_east(self, tile_north: "Tile", tile_east: "Tile") -> "Tile":
-        tile_north_east = self.new()
-        for _i in range(self._size + 1):
-            value_north = tile_north.get(self._size, _i)
-            tile_north_east.set(0, _i, value_north)
-            value_east = tile_east.get(_i, 0)
-            tile_north_east.set(_i, self._size, value_east)
-
-        tile_north_east.create_noise()
-        return tile_north_east
-
-    def go_south_east(self, tile_south: "Tile", tile_east: "Tile") -> "Tile":
-        tile_south_east = self.new()
-        for _i in range(self._size + 1):
-            value_east = tile_east.get(_i, self._size)
-            tile_south_east.set(_i, 0, value_east)
-            value_south = tile_south.get(self._size, _i)
-            tile_south_east.set(0, _i, value_south)
-
-        tile_south_east.create_noise()
-        return tile_south_east
-
-    def go_south_west(self, tile_south: "Tile", tile_west: "Tile") -> "Tile":
-        tile_south_west = self.new()
-        for _i in range(self._size + 1):
-            value_south = tile_south.get(0, _i)
-            tile_south_west.set(self._size, _i, value_south)
-            value_west = tile_west.get(_i, self._size)
-            tile_south_west.set(_i, 0, value_west)
-
-        tile_south_west.create_noise()
-        return tile_south_west
-
-    def go_north_west(self, tile_north: "Tile", tile_west: "Tile") -> "Tile":
-        tile_north_west = self.new()
-        for _i in range(self._size + 1):
-            value_west = tile_west.get(_i, 0)
-            tile_north_west.set(_i, self._size, value_west)
-            value_north = tile_north.get(0, _i)
-            tile_north_west.set(self._size, _i, value_north)
-
-        tile_north_west.create_noise()
-        return tile_north_west
-
-    def flip(self) -> "Tile":
-        flipped = self.new()
-
-        for _y in range(self._size + 1):
-            for _x in range(self._size + 1):
-                value = self.get(_x, _y)
-                flipped.set(self._size - _y - 1, self._size - _x - 1, value)
-
-        return flipped
-
-    def stretch_(self) -> "Tile":
-        offset = self._size // 4
-        edge_zoom = self._size // 2
-
-        tile_expand = self.new()
-
-        for _x in range(edge_zoom):
-            _x_source = _x + offset
-            _x_target = _x * 2
-            for _y in range(edge_zoom):
-                value = self.get(_x_source, _y + offset)
-                tile_expand.set(_x_target, _y * 2, value)
-
-        return tile_expand
-
     def stretch(self, east: bool, south: bool) -> "Tile":
         edge_zoom = self._size // 2
 
         tile_expand = self.new()
 
-        for _x in range(edge_zoom):
-            _x_source = _x + int(east) * edge_zoom
-            _x_target = _x * 2
-            for _y in range(edge_zoom):
-                value = self.get(_x_source, _y + int(south) * edge_zoom)
-                tile_expand.set(_x_target, _y * 2, value)
+        for _x in range(0, self._size + 1, 2):
+            _x_source = _x // 2 + int(east) * edge_zoom
+            for _y in range(0, self._size + 1, 2):
+                _y_source = _y // 2 + int(south) * edge_zoom
+                value = self.get(_x_source, _y_source)
+                tile_expand.set(_x, _y, value)
 
-        return tile_expand
-
-    def zoom_in(self) -> "Tile":
-        tile_expand = self.stretch()
-        tile_expand.create_noise()
         return tile_expand
 
     def shrink(self) -> "Tile":
@@ -294,48 +232,14 @@ class Tile:
             value_min=self._min,
             value_max=self._max)
 
-        for _x in range(tile_shrunk._size):
-            _x_double = _x * 2
-
-            value_e_t = self.get(self._size, _x_double)
-            value_e_b = self.get(self._size, _x_double + 1)
-            tile_shrunk.set(tile_shrunk._size, _x, (value_e_t + value_e_b) // 2)
-
-            value_s_l = self.get(_x_double, self._size)
-            value_s_r = self.get(_x_double + 1, self._size)
-            tile_shrunk.set(_x, tile_shrunk._size, (value_s_l + value_s_r) // 2)
-
-            for _y in range(tile_shrunk._size):
-                _y_double = _y * 2
-                value_nw = self.get(_x_double, _y_double)
-                value_ne = self.get(_x_double + 1, _y_double)
-                value_se = self.get(_x_double + 1, _y_double + 1)
-                value_sw = self.get(_x_double, _y_double + 1)
-                value_average = (value_nw + value_ne + value_se + value_sw) // 4
-                tile_shrunk.set(_x, _y, value_average)
-
-        value_last = self.get(self._size, self._size)
-        tile_shrunk.set(tile_shrunk._size, tile_shrunk._size, value_last)
+        for _x in range(tile_shrunk._size + 1):
+            _x_source = _x * 2
+            for _y in range(tile_shrunk._size + 1):
+                _y_source = _y * 2
+                value = self.get(_x_source, _y_source)
+                tile_shrunk.set(_x, _y, value)
 
         return tile_shrunk
-
-    def extract_tile(self, x_offset: int, y_offset: int, size: int) -> "Tile":
-        tile = Tile(
-            size,
-            randomization=self._randomization,
-            value_min=self._min,
-            value_max=self._max
-        )
-
-        assert x_offset + size < self._size
-        assert y_offset + size < self._size
-
-        for _x in range(size + 1):
-            for _y in range(size + 1):
-                value = self.get(x_offset + _x, y_offset + _y)
-                tile.set(_x, _y, value)
-
-        return tile
 
     def insert_tile(self, tile: "Tile", x: int = 0, y: int = 0):
         for _x in range(tile._size + 1):
@@ -349,69 +253,6 @@ class Tile:
                 value = tile.get(_x, _y)
                 if 0 < value:
                     self.set(x_total, y_total, value)
-
-    def zoom_out(self) -> "Tile":
-        tile_new = self.new()
-
-        tile_mid = self.shrink()
-        tile_new.insert_tile(tile_mid, x=tile_new._size // 4, y=tile_new._size // 4)
-
-        tile_new.create_noise()
-        return tile_new
-
-    def _zoom_out(self) -> "Tile":
-        tile_new = self.new()
-
-        tile_mid = self.shrink()
-        tile_new.insert_tile(tile_mid, x=tile_new._size // 4, y=tile_new._size // 4)
-
-        tile_north = tile_mid.go_north()
-        tile_new.insert_tile(tile_north, x=tile_new._size // 4, y=-tile_new._size // 4)
-
-        tile_east = tile_mid.go_east()
-        tile_new.insert_tile(tile_east, x=3 * tile_new._size // 4, y=tile_new._size // 4)
-
-        tile_north_east = tile_mid.go_north_east(tile_north, tile_east)
-        tile_new.insert_tile(tile_north_east, x=3 * tile_new._size // 4, y=-tile_new._size // 4)
-
-        tile_south = tile_mid.go_south()
-        tile_new.insert_tile(tile_south, x=tile_new._size // 4, y=3 * tile_new._size // 4)
-
-        tile_south_east = tile_mid.go_south_east(tile_south, tile_east)
-        tile_new.insert_tile(tile_south_east, x=3 * tile_new._size // 4, y=3 * tile_new._size // 4)
-
-        tile_west = tile_mid.go_west()
-        tile_new.insert_tile(tile_west, x=-tile_new._size // 4, y=tile_new._size // 4)
-
-        tile_south_west = tile_mid.go_south_west(tile_south, tile_west)
-        tile_new.insert_tile(tile_south_west, x=-tile_new._size // 4, y=3 * tile_new._size // 4)
-
-        tile_north_west = tile_mid.go_north_west(tile_north, tile_west)
-        tile_new.insert_tile(tile_north_west, x=-tile_new._size // 4, y=-tile_new._size // 4)
-
-        return tile_new
-
-
-# TODO: use time instead of image
-
-
-def _render(image: Image, skip: bool = False) -> Image:
-    rendered = image.copy()
-    width, height = rendered.size
-    if not skip:
-        filtered_a = image.filter(ImageFilter.GaussianBlur(radius=2))
-        # filtered_a = filtered_a.filter(ImageFilter.CONTOUR)
-        filtered_b = image.filter(ImageFilter.GaussianBlur(radius=5))
-        data_a = numpy.array(filtered_a)
-        #data_b = numpy.array(filtered_b)
-        #for row_a, row_b in zip(data_a, data_b):
-        #    for i, value_b in enumerate(row_b):
-        #        if value_b < 128:
-        #            row_a[i] = 1
-        rendered = Image.fromarray(data_a, mode="L")
-    _rectangle(rendered, width // 4, height // 4, width // 2)
-    # _rectangle(rendered, 0, 0, width // 2)
-    return rendered
 
 
 class Map:
@@ -429,15 +270,8 @@ class Map:
             }
         }
 
-    def _convert_coordinates_up(self, x: int, y: int) -> Tuple[int, int]:
-        return x // 2, y // 2
-
-    def _convert_coordinates_dn(self, x: int, y: int) -> Tuple[int, int]:
-        return x * 2, y * 2
-
     def _roof_tiles(self, tile: Tile, level: int, x: int, y: int, max_recursion_depth: int = 5):
         level_above = level + 1
-        half_size = self._tile_size // 2
         _x_top = x // 2
         _y_top = y // 2
 
@@ -446,7 +280,6 @@ class Map:
 
         tile_top = self._get_tile_maybe(level_above, _x_top, _y_top)
         if tile_top is not None:
-            # snippet = tile_top.extract_tile((x % 2) * half_size, (y % 2) * half_size, half_size)  # coordinates are wrong
             snippet = tile_top.stretch(bool(x % 2), bool(y % 2))
             tile.insert_tile(snippet, 0, 0)
 
@@ -489,43 +322,35 @@ class Map:
 
         tile_north = self._get_tile_maybe(level, x, y - 1)
         if tile_north is not None:
-            for _i, _v in enumerate(tile_north.get_edge_south()):
-                tile.set(_i, 0, _v)
+            tile.edge_north = tile_north.edge_south
 
         tile_east = self._get_tile_maybe(level, x + 1, y)
         if tile_east is not None:
-            for _i, _v in enumerate(tile_east.get_edge_west()):
-                tile.set(self._tile_size, _i, _v)
+            tile.edge_east = tile_east.edge_west
 
         tile_south = self._get_tile_maybe(level, x, y + 1)
         if tile_south is not None:
-            for _i, _v in enumerate(tile_south.get_edge_north()):
-                tile.set(_i, self._tile_size, _v)
+            tile.edge_south = tile_south.edge_north
 
         tile_west = self._get_tile_maybe(level, x - 1, y)
         if tile_west is not None:
-            for _i, _v in enumerate(tile_west.get_edge_east()):
-                tile.set(0, _i, _v)
+            tile.edge_west = tile_west.edge_east
 
         tile_northwest = self._get_tile_maybe(level, x - 1, y - 1)
         if tile_northwest is not None:
-            value = tile_northwest.get(self._tile_size, self._tile_size)
-            tile.set(0, 0, value)
+            tile.corner_northwest = tile_northwest.corner_southeast
 
         tile_northeast = self._get_tile_maybe(level, x + 1, y - 1)
         if tile_northeast is not None:
-            value = tile_northeast.get(0, self._tile_size)
-            tile.set(self._tile_size, 0, value)
+            tile.corner_northeast = tile_northeast.corner_southwest
 
         tile_southeast = self._get_tile_maybe(level, x + 1, y + 1)
         if tile_southeast is not None:
-            value = tile_southeast.get(0, 0)
-            tile.set(self._tile_size, self._tile_size, value)
+            tile.corner_southeast = tile_southeast.corner_northwest
 
         tile_southwest = self._get_tile_maybe(level, x - 1, y + 1)
         if tile_southwest is not None:
-            value = tile_southwest.get(self._tile_size, 0)
-            tile.set(0, self._tile_size, value)
+            tile.corner_southwest = tile_southwest.corner_northeast
 
         tile.create_noise()
         return tile
@@ -566,44 +391,20 @@ class Map:
         tile_ne = self._get_tile(level, x, y - 1)
         display.insert_tile(tile_ne, x=self._tile_size, y=0)
 
-        #assert tile_nw.get_edge_east() == tile_ne.get_edge_west()
-
         tile_se = self._get_tile(level, x, y)
         display.insert_tile(tile_se, x=self._tile_size, y=self._tile_size)
-
-        #assert tile_ne.get_edge_south() == tile_se.get_edge_north()
 
         tile_sw = self._get_tile(level, x - 1, y)
         display.insert_tile(tile_sw, x=0, y=self._tile_size)
 
-        #assert tile_sw.get_edge_east() == tile_se.get_edge_west()
-
-        #assert tile_nw.get_edge_south() == tile_sw.get_edge_north()
-
         display.draw(skip_render=True)
 
 
-def _main():
-    # figure_source, axis_source = pyplot.subplots()
-
-    tile = Tile(256, randomization=50)
-    tile.create_noise()
-
-    for _i in range(1000):
-        tile.draw(skip_render=False)
-
-        # tile = tile.zoom_in()
-        # tile = tile.zoom_out()
-        tile = tile._zoom_out()
-
-        # tile = tile.go_south()
-
-
 def main():
-    map_tiles = Map(tile_size=128)
+    map_tiles = Map(tile_size=256)
 
     for _i in range(1000):
-        map_tiles.draw(level=-_i)
+        map_tiles.draw(level=_i)
 
 
 if __name__ == "__main__":
