@@ -1,6 +1,6 @@
 import random
 import time
-from typing import Optional, Tuple
+from typing import Optional, Tuple, Sequence
 
 import numpy
 from PIL import Image
@@ -50,6 +50,18 @@ class Tile:
         # pyplot.contour(im, levels=[.5, 1.])
         pyplot.draw()
         pyplot.ioff()
+
+    def get_edge_north(self) -> Sequence[int]:
+        return self._grid[0] + [self._edge_east[0]]
+
+    def get_edge_east(self) -> Sequence[int]:
+        return self._edge_east + [self._edge_south[-1]]
+
+    def get_edge_south(self) -> Sequence[int]:
+        return self._edge_south
+
+    def get_edge_west(self) -> Sequence[int]:
+        return [row[0] for row in self._grid] + [self._edge_south[0]]
 
     def new(self):
         return Tile(
@@ -423,49 +435,49 @@ class Map:
     def _convert_coordinates_dn(self, x: int, y: int) -> Tuple[int, int]:
         return x * 2, y * 2
 
-    def _roof_tiles(self, tile: Tile, level: int, x: int, y: int):
+    def _roof_tiles(self, tile: Tile, level: int, x: int, y: int, max_recursion_depth: int = 5):
         level_above = level + 1
         half_size = self._tile_size // 2
         _x_top = x // 2
         _y_top = y // 2
 
-        if level_above in self._matrix_tile:
-            self._roof_tiles(tile, level_above, _x_top, _y_top)
+        if level_above in self._matrix_tile and 0 < max_recursion_depth:
+            self._roof_tiles(tile, level_above, _x_top, _y_top, max_recursion_depth=max_recursion_depth-1)
 
-        tile_top = self._get_tile(level_above, _x_top, _y_top)
+        tile_top = self._get_tile_maybe(level_above, _x_top, _y_top)
         if tile_top is not None:
             # snippet = tile_top.extract_tile((x % 2) * half_size, (y % 2) * half_size, half_size)  # coordinates are wrong
             snippet = tile_top.stretch(bool(x % 2), bool(y % 2))
             tile.insert_tile(snippet, 0, 0)
 
-    def _base_tiles(self, tile: Tile, level: int, x: int, y: int):
+    def _base_tiles(self, tile: Tile, level: int, x: int, y: int, max_recursion_depth: int = 5):
         level_below = level - 1
         half_size = self._tile_size // 2
         _x_low = x * 2
         _y_low = y * 2
 
-        if level_below in self._matrix_tile:
-            self._base_tiles(tile, level_below, _x_low, _y_low)
-            self._base_tiles(tile, level_below, _x_low + 1, _y_low)
-            self._base_tiles(tile, level_below, _x_low + 1, _y_low + 1)
-            self._base_tiles(tile, level_below, _x_low, _y_low + 1)
+        if level_below in self._matrix_tile and 0 < max_recursion_depth:
+            self._base_tiles(tile, level_below, _x_low, _y_low, max_recursion_depth=max_recursion_depth-1)
+            self._base_tiles(tile, level_below, _x_low + 1, _y_low, max_recursion_depth=max_recursion_depth-1)
+            self._base_tiles(tile, level_below, _x_low + 1, _y_low + 1, max_recursion_depth=max_recursion_depth-1)
+            self._base_tiles(tile, level_below, _x_low, _y_low + 1, max_recursion_depth=max_recursion_depth-1)
 
-        tile_nw = self._get_tile(level_below, _x_low, _y_low)
+        tile_nw = self._get_tile_maybe(level_below, _x_low, _y_low)
         if tile_nw is not None:
             shrunk = tile_nw.shrink()
             tile.insert_tile(shrunk, 0, 0)
 
-        tile_ne = self._get_tile(level_below, _x_low + 1, _y_low)
+        tile_ne = self._get_tile_maybe(level_below, _x_low + 1, _y_low)
         if tile_ne is not None:
             shrunk = tile_ne.shrink()
             tile.insert_tile(shrunk, half_size, 0)
 
-        tile_se = self._get_tile(level_below, _x_low + 1, _y_low + 1)
+        tile_se = self._get_tile_maybe(level_below, _x_low + 1, _y_low + 1)
         if tile_se is not None:
             shrunk = tile_se.shrink()
             tile.insert_tile(shrunk, half_size, half_size)
 
-        tile_sw = self._get_tile(level_below, _x_low, _y_low + 1)
+        tile_sw = self._get_tile_maybe(level_below, _x_low, _y_low + 1)
         if tile_sw is not None:
             shrunk = tile_sw.shrink()
             tile.insert_tile(shrunk, 0, half_size)
@@ -475,29 +487,45 @@ class Map:
         self._roof_tiles(tile, level, x, y)
         self._base_tiles(tile, level, x, y)
 
-        tile_north = self._get_tile(level, x, y - 1)
+        tile_north = self._get_tile_maybe(level, x, y - 1)
         if tile_north is not None:
-            for _x in range(self._tile_size + 1):
-                value = tile_north.get(_x, self._tile_size)
-                tile.set(_x, 0, value)
+            for _i, _v in enumerate(tile_north.get_edge_south()):
+                tile.set(_i, 0, _v)
 
-        tile_east = self._get_tile(level, x + 1, y)
+        tile_east = self._get_tile_maybe(level, x + 1, y)
         if tile_east is not None:
-            for _y in range(self._tile_size + 1):
-                value = tile_east.get(0, _y)
-                tile.set(self._tile_size, _y, value)
+            for _i, _v in enumerate(tile_east.get_edge_west()):
+                tile.set(self._tile_size, _i, _v)
 
-        tile_south = self._get_tile(level, x, y + 1)
+        tile_south = self._get_tile_maybe(level, x, y + 1)
         if tile_south is not None:
-            for _x in range(self._tile_size + 1):
-                value = tile_south.get(_x, 0)
-                tile.set(_x, self._tile_size, value)
+            for _i, _v in enumerate(tile_south.get_edge_north()):
+                tile.set(_i, self._tile_size, _v)
 
-        tile_west = self._get_tile(level, x - 1, y)
+        tile_west = self._get_tile_maybe(level, x - 1, y)
         if tile_west is not None:
-            for _y in range(self._tile_size + 1):
-                value = tile_west.get(self._tile_size, _y)
-                tile.set(0, _y, value)
+            for _i, _v in enumerate(tile_west.get_edge_east()):
+                tile.set(0, _i, _v)
+
+        tile_northwest = self._get_tile_maybe(level, x - 1, y - 1)
+        if tile_northwest is not None:
+            value = tile_northwest.get(self._tile_size, self._tile_size)
+            tile.set(0, 0, value)
+
+        tile_northeast = self._get_tile_maybe(level, x + 1, y - 1)
+        if tile_northeast is not None:
+            value = tile_northeast.get(0, self._tile_size)
+            tile.set(self._tile_size, 0, value)
+
+        tile_southeast = self._get_tile_maybe(level, x + 1, y + 1)
+        if tile_southeast is not None:
+            value = tile_southeast.get(0, 0)
+            tile.set(self._tile_size, self._tile_size, value)
+
+        tile_southwest = self._get_tile_maybe(level, x - 1, y + 1)
+        if tile_southwest is not None:
+            value = tile_southwest.get(self._tile_size, 0)
+            tile.set(0, self._tile_size, value)
 
         tile.create_noise()
         return tile
@@ -513,7 +541,7 @@ class Map:
             else:
                 column_tile[x] = tile
 
-    def _get_tile(self, level: int, x: int, y: int) -> Optional[Tile]:
+    def _get_tile_maybe(self, level: int, x: int, y: int) -> Optional[Tile]:
         map_level = self._matrix_tile.get(level)
         if map_level is None:
             return None
@@ -522,37 +550,37 @@ class Map:
             return None
         return column_tile.get(x)
 
-    def draw(self, level: int = 0, x: int = 0, y: int = 0):
-        display = Tile(self._tile_size * 2, randomization=self._randomization, value_min=self._value_min, value_max=self._value_max)
-
-        tile_se = self.get_tile(level, x, y)
-        display.insert_tile(tile_se, x=self._tile_size, y=self._tile_size)
-
-        tile_sw = self.get_tile(level, x - 1, y)
-        display.insert_tile(tile_sw, x=0, y=self._tile_size)
-
-        tile_nw = self.get_tile(level, x - 1, y - 1)
-        display.insert_tile(tile_nw, x=0, y=0)
-
-        tile_ne = self.get_tile(level, x, y - 1)
-        display.insert_tile(tile_ne, x=self._tile_size, y=0)
-
-        display.draw(skip_render=True)
-
-        1 + 1
-
-    def _update_tile(self, level: int, x: int, y: int):
-        _tile = self._get_tile(level, x, y)
-        if _tile is None:
-            _tile = self._create_tile(level, x, y)
-            self._set_tile(_tile, level, x, y)
-
-    def get_tile(self, level: int, x: int, y: int) -> Tile:
-        _tile = self._get_tile(level, x, y)
+    def _get_tile(self, level: int, x: int, y: int) -> Tile:
+        _tile = self._get_tile_maybe(level, x, y)
         if _tile is None:
             _tile = self._create_tile(level, x, y)
             self._set_tile(_tile, level, x, y)
         return _tile
+
+    def draw(self, level: int = 0, x: int = 0, y: int = 0):
+        display = Tile(self._tile_size * 2, randomization=self._randomization, value_min=self._value_min, value_max=self._value_max)
+
+        tile_nw = self._get_tile(level, x - 1, y - 1)
+        display.insert_tile(tile_nw, x=0, y=0)
+
+        tile_ne = self._get_tile(level, x, y - 1)
+        display.insert_tile(tile_ne, x=self._tile_size, y=0)
+
+        #assert tile_nw.get_edge_east() == tile_ne.get_edge_west()
+
+        tile_se = self._get_tile(level, x, y)
+        display.insert_tile(tile_se, x=self._tile_size, y=self._tile_size)
+
+        #assert tile_ne.get_edge_south() == tile_se.get_edge_north()
+
+        tile_sw = self._get_tile(level, x - 1, y)
+        display.insert_tile(tile_sw, x=0, y=self._tile_size)
+
+        #assert tile_sw.get_edge_east() == tile_se.get_edge_west()
+
+        #assert tile_nw.get_edge_south() == tile_sw.get_edge_north()
+
+        display.draw(skip_render=True)
 
 
 def _main():
