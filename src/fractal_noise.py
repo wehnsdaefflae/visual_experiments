@@ -496,7 +496,7 @@ class Map:
                 value = tile_south.get(_x, 0)
                 tile.set(_x, self._tile_size, value)
 
-        tile_west = self._get_tile(level, x, y - 1)
+        tile_west = self._get_tile(level, x - 1, y)
         if tile_west is not None:
             for _y in range(self._tile_size + 1):
                 value = tile_west.get(self._tile_size, _y)
@@ -528,6 +528,15 @@ class Map:
     def draw(self):
         display = Tile(self._tile_size * 2, randomization=self._randomization, value_min=self._value_min, value_max=self._value_max)
 
+        tile_se = self._tile_current
+        display.insert_tile(tile_se, x=self._tile_size, y=self._tile_size)
+
+        tile_sw = self._get_tile(self._level_current, self._x_current - 1, self._y_current)
+        if tile_sw is None:
+            tile_sw = self._create_tile(self._level_current, self._x_current - 1, self._y_current)
+            self._set_tile(tile_sw, self._level_current, self._x_current - 1, self._y_current)
+        display.insert_tile(tile_sw, x=0, y=self._tile_size)
+
         tile_nw = self._get_tile(self._level_current, self._x_current - 1, self._y_current - 1)
         if tile_nw is None:
             tile_nw = self._create_tile(self._level_current, self._x_current - 1, self._y_current - 1)
@@ -539,15 +548,6 @@ class Map:
             tile_ne = self._create_tile(self._level_current, self._x_current, self._y_current - 1)
             self._set_tile(tile_ne, self._level_current, self._x_current, self._y_current - 1)
         display.insert_tile(tile_ne, x=self._tile_size, y=0)
-
-        tile_se = self._tile_current
-        display.insert_tile(tile_se, x=self._tile_size, y=self._tile_size)
-
-        tile_sw = self._get_tile(self._level_current, self._x_current - 1, self._y_current)
-        if tile_sw is None:
-            tile_sw = self._create_tile(self._level_current, self._x_current - 1, self._y_current)
-            self._set_tile(tile_sw, self._level_current, self._x_current - 1, self._y_current)
-        display.insert_tile(tile_sw, x=0, y=self._tile_size)
 
         display.draw(skip_render=True)
 
