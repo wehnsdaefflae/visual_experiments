@@ -407,15 +407,12 @@ class Map:
         self._tile_size = tile_size
         self._randomization = randomization
         self._value_min, self._value_max = value_min, value_max
-        self._tile_current = Tile(tile_size, randomization=randomization, value_min=value_min, value_max=value_max)
-        self._tile_current.create_noise()
-        self._x_current = 0
-        self._y_current = 0
-        self._level_current = 0
+        _tile_genesis = Tile(tile_size, randomization=randomization, value_min=value_min, value_max=value_max)
+        _tile_genesis.create_noise()
         self._matrix_tile = {
-            self._level_current: {
-                self._y_current: {
-                    self._x_current: self._tile_current
+            0: {
+                0: {
+                    0: _tile_genesis
                 }
             }
         }
@@ -525,63 +522,37 @@ class Map:
             return None
         return column_tile.get(x)
 
-    def draw(self):
+    def draw(self, level: int = 0, x: int = 0, y: int = 0):
         display = Tile(self._tile_size * 2, randomization=self._randomization, value_min=self._value_min, value_max=self._value_max)
 
-        tile_se = self._tile_current
+        tile_se = self.get_tile(level, x, y)
         display.insert_tile(tile_se, x=self._tile_size, y=self._tile_size)
 
-        tile_sw = self._get_tile(self._level_current, self._x_current - 1, self._y_current)
-        if tile_sw is None:
-            tile_sw = self._create_tile(self._level_current, self._x_current - 1, self._y_current)
-            self._set_tile(tile_sw, self._level_current, self._x_current - 1, self._y_current)
+        tile_sw = self.get_tile(level, x - 1, y)
         display.insert_tile(tile_sw, x=0, y=self._tile_size)
 
-        tile_nw = self._get_tile(self._level_current, self._x_current - 1, self._y_current - 1)
-        if tile_nw is None:
-            tile_nw = self._create_tile(self._level_current, self._x_current - 1, self._y_current - 1)
-            self._set_tile(tile_nw, self._level_current, self._x_current - 1, self._y_current - 1)
+        tile_nw = self.get_tile(level, x - 1, y - 1)
         display.insert_tile(tile_nw, x=0, y=0)
 
-        tile_ne = self._get_tile(self._level_current, self._x_current, self._y_current - 1)
-        if tile_ne is None:
-            tile_ne = self._create_tile(self._level_current, self._x_current, self._y_current - 1)
-            self._set_tile(tile_ne, self._level_current, self._x_current, self._y_current - 1)
+        tile_ne = self.get_tile(level, x, y - 1)
         display.insert_tile(tile_ne, x=self._tile_size, y=0)
 
         display.draw(skip_render=True)
 
+        1 + 1
+
     def _update_tile(self, level: int, x: int, y: int):
-        self._tile_current = self._get_tile(level, x, y)
-        if self._tile_current is None:
-            self._tile_current = self._create_tile(level, x, y)
-            self._set_tile(self._tile_current, level, x, y)
+        _tile = self._get_tile(level, x, y)
+        if _tile is None:
+            _tile = self._create_tile(level, x, y)
+            self._set_tile(_tile, level, x, y)
 
-    def go_north(self):
-        self._y_current -= 1
-        self._update_tile(self._level_current, self._x_current, self._y_current)
-
-    def go_east(self):
-        self._x_current += 1
-        self._update_tile(self._level_current, self._x_current, self._y_current)
-
-    def go_south(self):
-        self._y_current += 1
-        self._update_tile(self._level_current, self._x_current, self._y_current)
-
-    def go_west(self):
-        self._x_current -= 1
-        self._update_tile(self._level_current, self._x_current, self._y_current)
-
-    def go_out(self):
-        self._level_current += 1
-        self._x_current, self._y_current = self._convert_coordinates_up(self._x_current, self._y_current)
-        self._update_tile(self._level_current, self._x_current, self._y_current)
-
-    def go_in(self):
-        self._level_current -= 1
-        self._x_current, self._y_current = self._convert_coordinates_dn(self._x_current, self._y_current)
-        self._update_tile(self._level_current, self._x_current, self._y_current)
+    def get_tile(self, level: int, x: int, y: int) -> Tile:
+        _tile = self._get_tile(level, x, y)
+        if _tile is None:
+            _tile = self._create_tile(level, x, y)
+            self._set_tile(_tile, level, x, y)
+        return _tile
 
 
 def _main():
@@ -601,39 +572,12 @@ def _main():
 
 
 def main():
-    map_tiles = Map(tile_size=256)
+    map_tiles = Map(tile_size=128)
 
     for _i in range(1000):
-        """
-        print("north")
-        map_tiles.draw()
-        map_tiles.go_north()
-        time.sleep(1.)
-
-        print("east")
-        map_tiles.draw()
-        map_tiles.go_east()
-        time.sleep(1.)
-
-        print("south")
-        map_tiles.draw()
-        map_tiles.go_south()
-        time.sleep(1.)
-
-        print("west")
-        map_tiles.draw()
-        map_tiles.go_west()
-        time.sleep(1.)
-        """
-
-        for _j in range(10):
-            map_tiles.draw()
-            map_tiles.go_out()
-
-        for _j in range(10):
-            map_tiles.draw()
-            map_tiles.go_in()
+        map_tiles.draw(level=-_i)
 
 
 if __name__ == "__main__":
+    random.seed(2346464)
     main()
