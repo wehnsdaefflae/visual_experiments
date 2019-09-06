@@ -121,10 +121,13 @@ class Tile:
 
         return self._grid[y - 1][x - 1]
 
-    def set(self, x: int, y: int, value: int):
+    def set(self, x: int, y: int, value: int, overwrite: bool = True):
         assert self._size >= x >= 0
         assert self._size >= y >= 0
         assert self._max >= value >= self._min
+
+        if not overwrite and 0 < self.get(x, y):
+            return
 
         if x == 0:
             if y == 0:
@@ -152,14 +155,14 @@ class Tile:
             row = self._grid[y - 1]
             row[x - 1] = value
 
-    def _randomize(self, value: int) -> int:
-        value_r = value + random.randint(-self._randomization, self._randomization)
-        if self._max < value_r:
-            return 2 * self._max - value_r
-        if value_r < self._min:
-            return 2 * self._min - value_r
-        return value_r
-        return min(self._max, max(self._min, value + random.randint(-self._randomization, self._randomization)))
+    def _randomize(self, value: int, r: int) -> int:
+        #value_r = value + random.randint(-r, r)
+        #if self._max < value_r:
+        #    return 2 * self._max - value_r
+        #if value_r < self._min:
+        #    return 2 * self._min - value_r
+        #return value_r
+        return min(self._max, max(self._min, value + random.randint(-r, r)))
 
     def _set_intermediates(self, x_origin: int, y_origin: int, window: int):
         x_mid = x_origin + window // 2
@@ -176,38 +179,40 @@ class Tile:
         value_se = self.get(x_origin + window, y_origin + window)
         value_sw = self.get(x_origin, y_origin + window)
 
+        r = self._randomization  # window // 1
+
         if e_undefined:
             value_e = (value_ne + value_se) // 2
-            self.set(x_origin + window, y_mid, self._randomize(value_e))
+            self.set(x_origin + window, y_mid, self._randomize(value_e, r), overwrite=False)
 
         if s_undefined:
             value_s = (value_se + value_sw) // 2
-            self.set(x_mid, y_origin + window, self._randomize(value_s))
+            self.set(x_mid, y_origin + window, self._randomize(value_s, r), overwrite=False)
 
         if m_undefined:
             value_m = (value_nw + value_ne + value_se + value_sw) // 4
-            self.set(x_mid, y_mid, self._randomize(value_m))
+            self.set(x_mid, y_mid, self._randomize(value_m, r), overwrite=False)
 
         if n_undefined and y_origin == 0:
             value_n = (value_nw + value_ne) // 2
-            self.set(x_mid, y_origin, self._randomize(value_n))
+            self.set(x_mid, y_origin, self._randomize(value_n, r), overwrite=False)
 
         if w_undefined and x_origin == 0:
             value_w = (value_sw + value_nw) // 2
-            self.set(x_origin, y_mid, self._randomize(value_w))
+            self.set(x_origin, y_mid, self._randomize(value_w, r), overwrite=False)
 
     def create_noise(self):
         value_nw = random.randint(self._min, self._max)
-        self.set(0, 0, value_nw)
+        self.set(0, 0, value_nw, overwrite=False)
 
         value_ne = random.randint(self._min, self._max)
-        self.set(self._size, 0, value_ne)
+        self.set(self._size, 0, value_ne, overwrite=False)
 
         value_se = random.randint(self._min, self._max)
-        self.set(self._size, self._size, value_se)
+        self.set(self._size, self._size, value_se, overwrite=False)
 
         value_sw = random.randint(self._min, self._max)
-        self.set(0, self._size, value_sw)
+        self.set(0, self._size, value_sw, overwrite=False)
 
         window = self._size
         while 1 < window:
@@ -327,36 +332,46 @@ class Map:
         self._base_tiles(tile, level, x, y)
 
         tile_north = self._get_tile_maybe(level, x, y - 1)
+        tile_east = self._get_tile_maybe(level, x + 1, y)
+        tile_south = self._get_tile_maybe(level, x, y + 1)
+        tile_west = self._get_tile_maybe(level, x - 1, y)
+
         if tile_north is not None:
             tile.edge_north = tile_north.edge_south
-
-        tile_east = self._get_tile_maybe(level, x + 1, y)
+            tile.corner_northwest = tile_north.corner_southwest
+            tile.corner_northeast = tile_north.corner_southeast
         if tile_east is not None:
             tile.edge_east = tile_east.edge_west
-
-        tile_south = self._get_tile_maybe(level, x, y + 1)
+            tile.corner_northeast = tile_east.corner_northwest
+            tile.corner_southeast = tile_east.corner_southwest
         if tile_south is not None:
             tile.edge_south = tile_south.edge_north
-
-        tile_west = self._get_tile_maybe(level, x - 1, y)
+            tile.corner_southeast = tile_south.corner_northeast
+            tile.corner_southwest = tile_south.corner_northwest
         if tile_west is not None:
             tile.edge_west = tile_west.edge_east
+            tile.corner_southwest = tile_west.corner_southeast
+            tile.corner_northwest = tile_west.corner_northeast
 
-        tile_northwest = self._get_tile_maybe(level, x - 1, y - 1)
-        if tile_northwest is not None:
-            tile.corner_northwest = tile_northwest.corner_southeast
+        if tile.corner_northwest.value < 1:
+            tile_northwest = self._get_tile_maybe(level, x - 1, y - 1)
+            if tile_northwest is not None:
+                tile.corner_northwest = tile_northwest.corner_southeast
 
-        tile_northeast = self._get_tile_maybe(level, x + 1, y - 1)
-        if tile_northeast is not None:
-            tile.corner_northeast = tile_northeast.corner_southwest
+        if tile.corner_northeast.value < 1:
+            tile_northeast = self._get_tile_maybe(level, x + 1, y - 1)
+            if tile_northeast is not None:
+                tile.corner_northeast = tile_northeast.corner_southwest
 
-        tile_southeast = self._get_tile_maybe(level, x + 1, y + 1)
-        if tile_southeast is not None:
-            tile.corner_southeast = tile_southeast.corner_northwest
+        if tile.corner_southeast.value < 1:
+            tile_southeast = self._get_tile_maybe(level, x + 1, y + 1)
+            if tile_southeast is not None:
+                tile.corner_southeast = tile_southeast.corner_northwest
 
-        tile_southwest = self._get_tile_maybe(level, x - 1, y + 1)
-        if tile_southwest is not None:
-            tile.corner_southwest = tile_southwest.corner_northeast
+        if tile.corner_southwest.value < 1:
+            tile_southwest = self._get_tile_maybe(level, x - 1, y + 1)
+            if tile_southwest is not None:
+                tile.corner_southwest = tile_southwest.corner_northeast
 
         tile.create_noise()
         return tile
@@ -407,31 +422,37 @@ class Map:
 
 
 def main():
-    map_tiles = Map(tile_size=256)
+    map_tiles = Map(tile_size=64)
 
     level = 0
     x = 0
     y = 0
 
     for _i in range(1000):
-        for _ in range(10):
+        map_tiles.draw(level=level, x=x, y=y)
+        level += 1
+        continue
+        for _ in range(2):
             map_tiles.draw(level=level, x=x, y=y)
             x += 1
-        for _ in range(10):
+        for _ in range(2):
             map_tiles.draw(level=level, x=x, y=y)
             y += 1
-        for _ in range(10):
+        for _ in range(2):
             map_tiles.draw(level=level, x=x, y=y)
             x -= 1
-        for _ in range(10):
+        for _ in range(2):
             map_tiles.draw(level=level, x=x, y=y)
             y -= 1
-        for _ in range(10):
+        for _ in range(2):
             map_tiles.draw(level=level, x=x, y=y)
             level += 1
-        for _ in range(10):
+        for _ in range(4):
             map_tiles.draw(level=level, x=x, y=y)
             level -= 1
+        for _ in range(2):
+            map_tiles.draw(level=level, x=x, y=y)
+            level += 1
 
 
 if __name__ == "__main__":
