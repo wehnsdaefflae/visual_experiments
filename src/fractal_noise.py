@@ -422,7 +422,7 @@ class Map:
 
 
 def main():
-    map_tiles = Map(tile_size=64)
+    map_tiles = Map(tile_size=128, randomization=64)
 
     level = 0
     x = 0
@@ -430,7 +430,7 @@ def main():
 
     for _i in range(1000):
         map_tiles.draw(level=level, x=x, y=y)
-        level += 1
+        x -= 1
         continue
         for _ in range(2):
             map_tiles.draw(level=level, x=x, y=y)
