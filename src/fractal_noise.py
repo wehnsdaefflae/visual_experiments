@@ -74,19 +74,19 @@ class Tile:
         self.corner_southwest = Corner(0)
 
     def draw(self, skip_render: bool = True):
-        pyplot.ion()
+        #pyplot.ion()
 
         window = [[self.corner_northwest.value] + self.edge_north.values] + [[self.edge_west.values[_y]] + row for _y, row in enumerate(self._grid)]
         image = Image.fromarray(numpy.uint8(window), "L")
         image = _render(image, skip=skip_render)
 
-        pyplot.pause(.00000001)
+        #pyplot.pause(.00000001)
 
-        pyplot.clf()
+        #pyplot.clf()
         pyplot.imshow(image, cmap="gist_earth", vmin=self._min, vmax=self._max)
 
-        pyplot.draw()
-        pyplot.ioff()
+        #pyplot.draw()
+        #pyplot.ioff()
 
     def new(self):
         return Tile(
@@ -403,7 +403,7 @@ class Map:
             self._set_tile(_tile, level, x, y)
         return _tile
 
-    def draw(self, level: int = 0, x: int = 0, y: int = 0):
+    def draw(self, level: int = 0, x: int = 0, y: int = 0, skip_render: bool = True):
         display = Tile(self._tile_size * 4, randomization=self._randomization, value_min=self._value_min, value_max=self._value_max)
 
         for _x in range(-2, 2, 1):
@@ -411,55 +411,88 @@ class Map:
                 tile = self._get_tile(level, x + _x, y + _y)
                 display.insert_tile(tile, x=(_x + 2) * self._tile_size, y=(_y + 2) * self._tile_size)
 
-        """
-        tile_nw = self._get_tile(level, x - 1, y - 1)
-        display.insert_tile(tile_nw, x=0, y=0)
+        display.draw(skip_render=skip_render)
 
-        tile_ne = self._get_tile(level, x, y - 1)
-        display.insert_tile(tile_ne, x=self._tile_size, y=0)
 
-        tile_se = self._get_tile(level, x, y)
-        display.insert_tile(tile_se, x=self._tile_size, y=self._tile_size)
+class ViewState:
+    def __init__(self, map_tiles: Map):
+        self._map_tiles = map_tiles
+        self._x = 0
+        self._y = 0
+        self._level = 0
 
-        tile_sw = self._get_tile(level, x - 1, y)
-        display.insert_tile(tile_sw, x=0, y=self._tile_size)
-        """
+    def __str__(self) -> str:
+        return f"{self._x:d}, {self._y:d}; {self._level:d}"
 
-        display.draw(skip_render=True)
+    def north(self):
+        print("north")
+        self._y -= 1
+
+    def east(self):
+        print("east")
+        self._x += 1
+
+    def south(self):
+        print("south")
+        self._y += 1
+
+    def west(self):
+        print("west")
+        self._x -= 1
+
+    def zoom_in(self):
+        print("zoom in")
+        self._level -= 1
+        self._y *= 2
+        self._x *= 2
+
+    def zoom_out(self):
+        print("zoom out")
+        self._level += 1
+        self._y //= 2  # plus modulo sth
+        self._x //= 2  # plus modulo sth
+
+    def draw(self):
+        self._map_tiles.draw(self._level, self._x, self._y, skip_render=True)
 
 
 def main():
     map_tiles = Map(tile_size=64, randomization=64)
+    view_state = ViewState(map_tiles)
 
-    level = 0
-    x = 0
-    y = 0
+    def press(event):
+        if event.key == "up":
+            view_state.north()
 
-    for _i in range(1000):
-        map_tiles.draw(level=level, x=x, y=y)
-        level -= 1
-        continue
-        for _ in range(2):
-            map_tiles.draw(level=level, x=x, y=y)
-            x += 1
-        for _ in range(2):
-            map_tiles.draw(level=level, x=x, y=y)
-            y += 1
-        for _ in range(2):
-            map_tiles.draw(level=level, x=x, y=y)
-            x -= 1
-        for _ in range(2):
-            map_tiles.draw(level=level, x=x, y=y)
-            y -= 1
-        for _ in range(2):
-            map_tiles.draw(level=level, x=x, y=y)
-            level += 1
-        for _ in range(4):
-            map_tiles.draw(level=level, x=x, y=y)
-            level -= 1
-        for _ in range(2):
-            map_tiles.draw(level=level, x=x, y=y)
-            level += 1
+        elif event.key == "left":
+            view_state.west()
+
+        elif event.key == "down":
+            view_state.south()
+
+        elif event.key == "right":
+            view_state.east()
+
+        elif event.key == "+":
+            view_state.zoom_in()
+
+        elif event.key == "-":
+            view_state.zoom_out()
+
+        else:
+            return
+
+        ax.set_title(str(view_state))
+        view_state.draw()
+        fig.canvas.draw()
+
+    fig, ax = pyplot.subplots()
+
+    fig.canvas.mpl_connect("key_press_event", press)
+
+    view_state.draw()
+
+    pyplot.show()
 
 
 if __name__ == "__main__":
