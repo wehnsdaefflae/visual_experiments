@@ -404,8 +404,14 @@ class Map:
         return _tile
 
     def draw(self, level: int = 0, x: int = 0, y: int = 0):
-        display = Tile(self._tile_size * 2, randomization=self._randomization, value_min=self._value_min, value_max=self._value_max)
+        display = Tile(self._tile_size * 4, randomization=self._randomization, value_min=self._value_min, value_max=self._value_max)
 
+        for _x in range(-2, 2, 1):
+            for _y in range(-2, 2, 1):
+                tile = self._get_tile(level, x + _x, y + _y)
+                display.insert_tile(tile, x=(_x + 2) * self._tile_size, y=(_y + 2) * self._tile_size)
+
+        """
         tile_nw = self._get_tile(level, x - 1, y - 1)
         display.insert_tile(tile_nw, x=0, y=0)
 
@@ -417,12 +423,13 @@ class Map:
 
         tile_sw = self._get_tile(level, x - 1, y)
         display.insert_tile(tile_sw, x=0, y=self._tile_size)
+        """
 
         display.draw(skip_render=True)
 
 
 def main():
-    map_tiles = Map(tile_size=128, randomization=64)
+    map_tiles = Map(tile_size=64, randomization=64)
 
     level = 0
     x = 0
@@ -430,7 +437,7 @@ def main():
 
     for _i in range(1000):
         map_tiles.draw(level=level, x=x, y=y)
-        x -= 1
+        level -= 1
         continue
         for _ in range(2):
             map_tiles.draw(level=level, x=x, y=y)
