@@ -135,6 +135,7 @@ class Tile:
             self.set(x_origin, y_mid, self._randomize(value_w, r), overwrite=False)
 
     def create_noise(self):
+        # todo: give corner value distributions depending on closest pixels
         value_nw = random.randint(self._min, self._max)
         self.set(0, 0, value_nw, overwrite=False)
 
