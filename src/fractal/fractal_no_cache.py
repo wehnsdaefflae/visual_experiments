@@ -273,7 +273,8 @@ class Map:
 
 
 def main():
-    map_tiles = Map(tile_size=128 + 1, offset=32, randomization=64)
+    map_tiles = Map(tile_size=128 + 1, offset=32, randomization=0)
+    # todo: specify grid size! (set pixels instead of interpolated ones)
 
     def press(event):
         if event.key == "up":
