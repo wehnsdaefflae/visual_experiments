@@ -1,6 +1,7 @@
 import random
+import itertools
 import time
-from typing import Optional, Tuple, Sequence
+from typing import Optional, Tuple, Sequence, List
 
 import numpy
 from PIL import Image
@@ -134,7 +135,7 @@ class Tile:
             value_w = (value_sw + value_nw) // 2
             self.set(x_origin, y_mid, self._randomize(value_w, r), overwrite=False)
 
-    def create_noise(self):
+    def _create_noise(self):
         # todo: give corner value distributions depending on closest pixels
         value_nw = random.randint(self._min, self._max)
         self.set(0, 0, value_nw, overwrite=False)
@@ -155,6 +156,43 @@ class Tile:
                     self._set_intermediates(_x * window, _y * window, window)
 
             window //= 2
+
+    def _get_neighbors(self, x: int, y: int) -> Sequence[int]:
+        neighbors = itertools.product((-1, 0, 1), repeat=2)
+        neighbor_values= []
+        for _dx, _dy in neighbors:
+            if _dx == _dy == 0:
+                continue
+            _x = x + _dx
+            if _x < 0 or _x >= self._size:
+                continue
+            _y = y + _dy
+            if _y < 0 or _y >= self._size:
+                continue
+            value = self.get(_x, _y)
+            if value < 1:
+                continue
+            neighbor_values.append(value)
+        return neighbor_values
+
+    def create_noise(self):
+        shuffled_y = list(range(self._size))
+        random.shuffle(shuffled_y)
+
+        shuffled_x = list(range(self._size))
+        random.shuffle(shuffled_x)
+        for y in shuffled_y:
+            for x in shuffled_x:
+                value = self.get(x, y)
+                if 0 < value:
+                    continue
+                neighbors = self._get_neighbors(x, y)
+                if len(neighbors) < 1:
+                    value = random.randint(self._min, self._max)
+                else:
+                    average = sum(neighbors) // len(neighbors)
+                    value = self._randomize(average, self._randomization)
+                self.set(x, y, value)
 
 
 class Map:
@@ -235,7 +273,7 @@ class Map:
 
 
 def main():
-    map_tiles = Map(tile_size=512 + 1, offset=256, randomization=32)
+    map_tiles = Map(tile_size=64 + 1, offset=16, randomization=8)
 
     def press(event):
         if event.key == "up":
