@@ -1,11 +1,10 @@
 import random
-import time
-from typing import Dict, Sequence, Tuple, List
+from typing import Sequence, List
 
 import math
 from matplotlib import pyplot
 
-from src.sample_distribution import Sampling
+from src.map_gengeration.sample_distribution import Sampling
 
 TOLERANCE = .000001
 

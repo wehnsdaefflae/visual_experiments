@@ -5,7 +5,7 @@ from typing import Tuple, Sequence
 
 import arcade
 
-from src.sample_distribution import Sampling
+from src.map_gengeration.sample_distribution import Sampling
 
 
 def average_colors(colors: Sequence[Tuple[float, float, float]]) -> Tuple[float, float, float]:

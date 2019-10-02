@@ -28,7 +28,7 @@ def get_neighbors(image: Image, x: int, y: int) -> Sequence[int]:
     return neighbors
 
 
-def nondirectional_noise(im: Image, no_iterations: int = 10):
+def nondirectional_noise(im: Image, no_iterations: int = 1):
     width, height = im.size
 
     # comb through:
@@ -96,6 +96,25 @@ def iterative_noise(im: Image, start_value: int = 128):
         pyplot.clf()
         pyplot.imshow(im)
         pyplot.draw()
+
+
+def top_down_noise(im: Image, size: int, randomization: int = 30):
+    value_origin = random.randint(1, 255)
+    im.putpixel((0, 0), value_origin)
+
+    for _x in range(1, size):
+        left = im.getpixel((_x - 1, 0))
+        value = max(1, min(255, left + random.randint(-randomization, randomization)))
+        im.putpixel((_x, 0), value)
+
+    for _y in range(1, size):
+        avrg = (im.getpixel((0, _y - 1)) + im.getpixel((1, _y - 1))) // 2
+        im.putpixel((0, _y), max(1, min(255, avrg + random.randint(-randomization, randomization))))
+        for _x in range(1, size - 1):
+            avrg = (im.getpixel((_x-1, _y-1)) + im.getpixel((_x, _y-1)) + im.getpixel((_x+1, _y-1))) // 3
+            im.putpixel((_x, _y), max(1, min(255, avrg + random.randint(-randomization, randomization))))
+        avrg = (im.getpixel((size - 2, _y)) + im.getpixel((size - 1, _y))) // 2
+        im.putpixel((size - 1, _y), max(1, min(255, avrg + random.randint(-randomization, randomization))))
 
 
 def directional_noise(im: Image, size: int, x_offset: int = 0, y_offset: int = 0, randomization: int = 30):
@@ -259,6 +278,7 @@ def main():
 
     im = Image.new("L", (width + 1, height + 1), color=0)
 
+    top_down_noise(im, 512, randomization=30)
     # directional_noise(im, 128, x_offset=1, y_offset=1, randomization=30)
     # nondirectional_noise(im)
     # iterative_noise(im)
@@ -266,7 +286,7 @@ def main():
     #for _size in (2 ** _i + 1 for _i in range(3, 9)):
     #    continuous_iterative(im, _size, x_offset=0, y_offset=0, randomization=30)
 
-    continuous_iterative(im, width, x_offset=0, y_offset=0, randomization=30)
+    # continuous_iterative(im, width, x_offset=0, y_offset=0, randomization=30)
 
     # todo: extend block wise
     #       zoom in, zoom out

@@ -135,7 +135,7 @@ class Tile:
             value_w = (value_sw + value_nw) // 2
             self.set(x_origin, y_mid, self._randomize(value_w, r), overwrite=False)
 
-    def _create_noise(self):
+    def create_noise(self):
         # todo: give corner value distributions depending on closest pixels
         value_nw = random.randint(self._min, self._max)
         self.set(0, 0, value_nw, overwrite=False)
@@ -175,7 +175,7 @@ class Tile:
             neighbor_values.append(value)
         return neighbor_values
 
-    def create_noise(self):
+    def _create_noise(self):
         shuffled_y = list(range(self._size))
         random.shuffle(shuffled_y)
 
@@ -273,7 +273,7 @@ class Map:
 
 
 def main():
-    map_tiles = Map(tile_size=64 + 1, offset=16, randomization=8)
+    map_tiles = Map(tile_size=128 + 1, offset=32, randomization=64)
 
     def press(event):
         if event.key == "up":
