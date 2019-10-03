@@ -11,58 +11,95 @@ from matplotlib import pyplot
 
 GRIDSIZE_RANDOMIZATION_XOFFSET_YOFFSET_FACTOR = Tuple[int, int, int, float]
 
-"""
-def _get_noise_layer(size: int, grid_size: int, randomization: int, x_offset: int, y_offset: int) -> Sequence[Sequence[float]]:
-    grid = [[0. for _ in range(size)] for _ in range(size)]
+
+def _randomize(value: float, r: float) -> float:
+    return min(1., max(0, value + random.uniform(-r, r)))
+
+
+def _set_intermediates(grid: Sequence[List[float]], randomization: float, x_origin: int, y_origin: int, window: int):
+    x_mid = x_origin + window // 2
+    y_mid = y_origin + window // 2
+
+    row_top = grid[y_origin]
+    row_mid = grid[y_mid]
+    row_bot = grid[y_origin + window]
+
+    value_nw = row_top[x_origin]
+    value_ne = row_top[x_origin + window]
+    value_se = row_bot[x_origin + window]
+    value_sw = row_bot[x_origin]
+
+    if row_mid[x_origin + window] < 0.:
+        value_e = (value_ne + value_se) // 2
+        row_mid[x_origin + window] = _randomize(value_e, randomization)
+
+    if row_bot[x_mid] < 0.:
+        value_s = (value_se + value_sw) // 2
+        row_bot[x_mid] = _randomize(value_s, randomization)
+
+    if row_mid[x_mid] < 0.:
+        value_m = (value_nw + value_ne + value_se + value_sw) // 4
+        row_mid[x_mid] = _randomize(value_m, randomization)
+
+    if row_top[x_mid] < 0. and y_origin == 0:
+        value_n = (value_nw + value_ne) // 2
+        row_top[x_mid] = _randomize(value_n, randomization)
+
+    if row_mid[x_origin] < 0. and x_origin == 0:
+        value_w = (value_sw + value_nw) // 2
+        row_mid[x_origin] = _randomize(value_w, randomization)
+
+
+def _get_noise_layer(grid: Sequence[List[float]], grid_noise: Sequence[List[float]], grid_size: int, randomization: int, x_offset: int, y_offset: int) -> Sequence[Sequence[float]]:
+    size = len(grid)
     window_size = grid_size
+
     while 1 < window_size:
 
-        _x = x_offset
-        while _x < size - window_size:
+        _y = y_offset
+        while _y < size - window_size:
+            row_noise = grid_noise[_y]
+            row_next_noise = grid_noise[_y + window_size]
 
-            _y = y_offset
-            while _y < size - window_size:
+            _x = x_offset
+            while _x < size - window_size:
+
                 if window_size == grid_size:
-                    value_nw = random.random() * 2. - 1
-                    self.set(_x, _y, value_nw, overwrite=False)
+                    if -1. < row_noise[_x]:
+                        row_noise[_x] += random.random()
 
-                    value_ne = random.randint(self._min, self._max)
-                    self.set(_x + window_size, _y, value_ne, overwrite=False)
+                    if -1. < row_noise[_x + window_size]:
+                        row_noise[_x + window_size] += random.random()
 
-                    value_se = random.randint(self._min, self._max)
-                    self.set(_x + window_size, _y + window_size, value_se, overwrite=False)
+                    if -1. < row_next_noise[_x + window_size]:
+                        row_next_noise[_x + window_size] += random.random()
 
-                    value_sw = random.randint(self._min, self._max)
-                    self.set(_x, _y + window_size, value_sw, overwrite=False)
+                    if -1 < row_next_noise[_x]:
+                        row_next_noise[_x] += random.random()
 
-                self._set_intermediates(_x, _y, window_size)
+                _set_intermediates(grid, randomization, _x, _y, window_size)
 
-                _y += window_size
+                _x += window_size
 
-            _x += window_size
+            _y += window_size
 
         window_size //= 2
 
-
-def _create_noise(grid: Sequence[List[float]], components: Sequence[GRIDSIZE_RANDOMIZATION_XOFFSET_YOFFSET_FACTOR]) -> Sequence[Sequence[float]]:
-    value_max = -1.
-    value_min = 1
-
-    for grid_size, randomization, x_offset, y_offset, factor in components:
-        for row, row_layer in zip(grid, _get_noise_layer(grid_size, randomization, x_offset, y_offset)):
-            for _x, value in enumerate(row_layer):
-                s = row[_x] + value * factor
-                row[_x] = s
-                if value_max < value_min:
-                    value_min, value_max = s, s
-                elif value_max < s:
-                    value_max = s
-                elif s < value_min:
-                    value_min = s
-
     return grid
 
-"""
+
+def _create_noise(grid: Sequence[List[float]], components: Sequence[GRIDSIZE_RANDOMIZATION_XOFFSET_YOFFSET_FACTOR]) -> Sequence[Sequence[float]]:
+    no_components = len(components)
+
+    for grid_size, randomization, x_offset, y_offset, factor in components:
+        noise_grid = [[-1. if value != 0. else 0. for value in row] for row in grid]
+
+        for row, row_layer in zip(grid, _get_noise_layer(grid, noise_grid, grid_size, randomization, x_offset, y_offset)):
+            for _x, value in enumerate(row_layer):
+                s = row[_x] + value * factor / no_components
+                row[_x] = s
+
+    return grid
 
 
 def _render(image: Image, skip: bool = False) -> Image:
