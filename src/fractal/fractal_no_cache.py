@@ -9,6 +9,61 @@ from PIL import Image
 from PIL import ImageFilter
 from matplotlib import pyplot
 
+GRIDSIZE_RANDOMIZATION_XOFFSET_YOFFSET_FACTOR = Tuple[int, int, int, float]
+
+"""
+def _get_noise_layer(size: int, grid_size: int, randomization: int, x_offset: int, y_offset: int) -> Sequence[Sequence[float]]:
+    grid = [[0. for _ in range(size)] for _ in range(size)]
+    window_size = grid_size
+    while 1 < window_size:
+
+        _x = x_offset
+        while _x < size - window_size:
+
+            _y = y_offset
+            while _y < size - window_size:
+                if window_size == grid_size:
+                    value_nw = random.random() * 2. - 1
+                    self.set(_x, _y, value_nw, overwrite=False)
+
+                    value_ne = random.randint(self._min, self._max)
+                    self.set(_x + window_size, _y, value_ne, overwrite=False)
+
+                    value_se = random.randint(self._min, self._max)
+                    self.set(_x + window_size, _y + window_size, value_se, overwrite=False)
+
+                    value_sw = random.randint(self._min, self._max)
+                    self.set(_x, _y + window_size, value_sw, overwrite=False)
+
+                self._set_intermediates(_x, _y, window_size)
+
+                _y += window_size
+
+            _x += window_size
+
+        window_size //= 2
+
+
+def _create_noise(grid: Sequence[List[float]], components: Sequence[GRIDSIZE_RANDOMIZATION_XOFFSET_YOFFSET_FACTOR]) -> Sequence[Sequence[float]]:
+    value_max = -1.
+    value_min = 1
+
+    for grid_size, randomization, x_offset, y_offset, factor in components:
+        for row, row_layer in zip(grid, _get_noise_layer(grid_size, randomization, x_offset, y_offset)):
+            for _x, value in enumerate(row_layer):
+                s = row[_x] + value * factor
+                row[_x] = s
+                if value_max < value_min:
+                    value_min, value_max = s, s
+                elif value_max < s:
+                    value_max = s
+                elif s < value_min:
+                    value_min = s
+
+    return grid
+
+"""
+
 
 def _render(image: Image, skip: bool = False) -> Image:
     rendered = image.copy()
@@ -145,15 +200,15 @@ class Tile:
             value_w = (value_sw + value_nw) // 2
             self.set(x_origin, y_mid, self._randomize(value_w, r), overwrite=False)
 
-    def create_noise(self):
+    def create_noise(self, x_offset: int = 0, y_offset: int = 0):
         window = self._grid_size
         while 1 < window:
-            for _x_window in range(self._size // window):
-                _x = _x_window * window
 
-                for _y_window in range(self._size // window):
-                    _y = _y_window * window
+            _x = x_offset
+            while _x < self._size - window:
 
+                _y = y_offset
+                while _y < self._size - window:
                     if window == self._grid_size:
                         value_nw = random.randint(self._min, self._max)
                         self.set(_x, _y, value_nw, overwrite=False)
@@ -168,6 +223,10 @@ class Tile:
                         self.set(_x, _y + window, value_sw, overwrite=False)
 
                     self._set_intermediates(_x, _y, window)
+
+                    _y += window
+
+                _x += window
 
             window //= 2
 
