@@ -1,3 +1,4 @@
+import math
 import random
 import itertools
 import time
@@ -45,9 +46,10 @@ def _rectangle(im: Image, x: int, y: int, size: int):
 
 
 class Tile:
-    def __init__(self, size: int, randomization: int = 50, value_min: int = 1, value_max: int = 255):
+    def __init__(self, size: int, grid_size: int = 64, randomization: int = 50, value_min: int = 1, value_max: int = 255):
         assert is_power_two(size - 1)
         self._size = size
+        self._grid_size = grid_size
         self._min = value_min
         self._max = value_max
         self._randomization = randomization
@@ -63,13 +65,15 @@ class Tile:
     def new(self):
         return Tile(
             self._size,
+            grid_size=self._grid_size,
             randomization=self._randomization,
             value_min=self._min,
             value_max=self._max)
 
     def get(self, x: int, y: int) -> int:
         assert self._size > x >= 0
-        assert self._size > y >= 0
+        if not self._size > y >= 0:
+            assert False
 
         row = self._grid[y]
         return row[x]
@@ -79,15 +83,21 @@ class Tile:
         row[x] = 0
 
     def set(self, x: int, y: int, value: int, overwrite: bool = True):
-        assert self._size > x >= 0
-        assert self._size > y >= 0
-        assert self._max >= value >= self._min
+        if not self._size > x >= 0:
+            assert False
+        if not self._size > y >= 0:
+            assert False
+        if not self._max >= value >= self._min:
+            assert False
 
         if not overwrite and 0 < self.get(x, y):
             return
 
-        row = self._grid[y]
-        row[x] = value
+        try:
+            row = self._grid[y]
+            row[x] = value
+        except TypeError:
+            assert False
 
     def _randomize(self, value: int, r: int) -> int:
         #value_r = value + random.randint(-r, r)
@@ -136,24 +146,28 @@ class Tile:
             self.set(x_origin, y_mid, self._randomize(value_w, r), overwrite=False)
 
     def create_noise(self):
-        # todo: give corner value distributions depending on closest pixels
-        value_nw = random.randint(self._min, self._max)
-        self.set(0, 0, value_nw, overwrite=False)
-
-        value_ne = random.randint(self._min, self._max)
-        self.set(self._size - 1, 0, value_ne, overwrite=False)
-
-        value_se = random.randint(self._min, self._max)
-        self.set(self._size - 1, self._size - 1, value_se, overwrite=False)
-
-        value_sw = random.randint(self._min, self._max)
-        self.set(0, self._size - 1, value_sw, overwrite=False)
-
-        window = self._size - 1
+        window = self._grid_size
         while 1 < window:
-            for _x in range(self._size // window):
-                for _y in range(self._size // window):
-                    self._set_intermediates(_x * window, _y * window, window)
+            for _x_window in range(self._size // window):
+                _x = _x_window * window
+
+                for _y_window in range(self._size // window):
+                    _y = _y_window * window
+
+                    if window == self._grid_size:
+                        value_nw = random.randint(self._min, self._max)
+                        self.set(_x, _y, value_nw, overwrite=False)
+
+                        value_ne = random.randint(self._min, self._max)
+                        self.set(_x + window, _y, value_ne, overwrite=False)
+
+                        value_se = random.randint(self._min, self._max)
+                        self.set(_x + window, _y + window, value_se, overwrite=False)
+
+                        value_sw = random.randint(self._min, self._max)
+                        self.set(_x, _y + window, value_sw, overwrite=False)
+
+                    self._set_intermediates(_x, _y, window)
 
             window //= 2
 
@@ -196,12 +210,12 @@ class Tile:
 
 
 class Map:
-    def __init__(self, tile_size: int = 512 + 1, offset: int = 64, randomization: int = 30, value_min: int = 1, value_max: int = 255):
+    def __init__(self, tile_size: int = 512 + 1, grid_size: int = 64, offset: int = 64, randomization: int = 30, value_min: int = 1, value_max: int = 255):
         self._tile_size = tile_size
         self._offset = offset
         self._randomization = randomization
         self._value_min, self._value_max = value_min, value_max
-        self._tile_current = Tile(tile_size, randomization=randomization, value_min=value_min, value_max=value_max)
+        self._tile_current = Tile(tile_size, grid_size=grid_size, randomization=randomization, value_min=value_min, value_max=value_max)
         self._tile_current.create_noise()
 
     def move_north(self):
@@ -248,22 +262,36 @@ class Map:
 
         self._tile_current.create_noise()
 
-    def zoom_in(self):
+    def zoom_in(self, ratio: float = .5):
         new_tile = self._tile_current.new()
-        for x in range(self._tile_size // 2):
-            for y in range(self._tile_size // 2):
-                value = self._tile_current.get(self._tile_size // 4 + x, self._tile_size // 4 + y)
-                new_tile.set(x * 2, y * 2, value)
+        edge_size = math.ceil(self._tile_size * ratio)
+        offset = (self._tile_size - edge_size) // 2
+        for x in range(edge_size):
+            for y in range(edge_size):
+                value = self._tile_current.get(offset + x, offset + y)
+                new_tile.set(round(x // ratio), round(y // ratio), value)
 
         self._tile_current = new_tile
         self._tile_current.create_noise()
 
-    def zoom_out(self):
+    def zoom_out(self, ratio: float = 2.):
         new_tile = self._tile_current.new()
-        for x in range(0, self._tile_size, 2):
-            for y in range(0, self._tile_size, 2):
+        edge_size = round(self._tile_size // ratio)
+        offset = (self._tile_size - edge_size) // 2
+        x_final = 0
+        _x = .0
+        while _x < self._tile_size:
+            y_final = 0
+            _y = .0
+            x = math.floor(_x)
+            while _y < self._tile_size:
+                y = math.floor(_y)
                 value = self._tile_current.get(x, y)
-                new_tile.set(self._tile_size // 4 + x // 2, self._tile_size // 4 + y // 2, value)
+                new_tile.set(offset + x_final, offset + y_final, value)
+                y_final += 1
+                _y += ratio
+            x_final += 1
+            _x += ratio
 
         self._tile_current = new_tile
         self._tile_current.create_noise()
@@ -273,8 +301,8 @@ class Map:
 
 
 def main():
-    map_tiles = Map(tile_size=128 + 1, offset=32, randomization=0)
-    # todo: specify grid size! (set pixels instead of interpolated ones)
+    size = 512
+    map_tiles = Map(tile_size=size + 1, grid_size=size // 4, offset=size // 8, randomization=size // 8)
 
     def press(event):
         if event.key == "up":
