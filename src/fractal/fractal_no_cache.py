@@ -301,8 +301,8 @@ class Map:
 
 
 def main():
-    size = 512
-    map_tiles = Map(tile_size=size + 1, grid_size=size // 4, offset=size // 8, randomization=size // 8)
+    size = 256
+    map_tiles = Map(tile_size=size + 1, grid_size=size // 8, offset=size // 8, randomization=size // 8)
 
     def press(event):
         if event.key == "up":
