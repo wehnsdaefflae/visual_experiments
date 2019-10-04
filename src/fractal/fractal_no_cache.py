@@ -69,7 +69,7 @@ def _get_noise_layer(grid: Sequence[List[float]], grid_size: int, randomization:
     size = len(grid)
     window_size = grid_size
 
-    grid_noise = [[-float(value >= 0.) for value in row] for row in grid]
+    grid_noise = [[0. for _ in row] for row in grid]
 
     while 1 < window_size:
 
@@ -78,20 +78,23 @@ def _get_noise_layer(grid: Sequence[List[float]], grid_size: int, randomization:
             row_noise = grid_noise[_y]
             row_next_noise = grid_noise[_y + window_size]
 
+            row = grid[_y]
+            row_next = grid[_y + window_size]
+
             _x = x_offset
             while _x < size - window_size:
 
                 if window_size == grid_size:
-                    if row_noise[_x] >= 0.:
+                    if row[_x] < 0.:
                         row_noise[_x] = random.random()
 
-                    if row_noise[_x + window_size] >= 0.:
+                    if row[_x + window_size] < 0.:
                         row_noise[_x + window_size] = random.random()
 
-                    if row_next_noise[_x + window_size] >= 0.:
+                    if row_next[_x + window_size] < 0.:
                         row_next_noise[_x + window_size] = random.random()
 
-                    if row_next_noise[_x] >= 0.:
+                    if row_next[_x] < 0.:
                         row_next_noise[_x] = random.random()
 
                 _set_intermediates(grid, grid_noise, randomization, _x, _y, window_size)
@@ -419,15 +422,16 @@ class Map:
 
 
 def main():
-    size = 512
+    size = 64
     # todo: set some pixels
-    grid = [[.5 if 240 < _y < 272 or 240 < _x < 272 else -1. for _x in range(size + 1)] for _y in range(size + 1)]
+    grid = [[.5 if 30 < _y < 34 or 30 < _x < 34 else -1. for _x in range(size + 1)] for _y in range(size + 1)]
     components = (
-        (size // 32, size / (32. * 256.), 0, 0, 1.0),
-        (size // 16, size / (16. * 256.), 0, 0, 1.0),
-        (size // 8, size / (8. * 256.), 0, 0, 1.0),
-        (size // 4, size / (4. * 256.), 0, 0, 1.0),
-        (size // 2, size / (2. * 256.), 0, 0, 1.0),
+        #(size // 32, size / (32. * 256.), 0, 0, 1.0),
+        #(size // 16, size / (16. * 256.), 0, 0, 1.0),
+        # (size // 8, size / (8. * 256.), 0, 0, 1.0),
+        #(size // 4, size / (4. * 256.), 0, 0, 1.0),
+        #(size // 2, size / (2. * 256.), 0, 0, 1.0),
+        (size, size / 256., 0, 0, 1.0),
     )
     _create_noise(grid, components)
 
@@ -443,6 +447,7 @@ def main():
     pyplot.imshow(image, cmap="gist_earth", vmin=0., vmax=256.)
     fig.canvas.draw()
     pyplot.show()
+
 
 def _main():
     size = 256
@@ -483,5 +488,5 @@ def _main():
 
 
 if __name__ == "__main__":
-    # random.seed(2346464)
+    random.seed(2346464)
     main()
