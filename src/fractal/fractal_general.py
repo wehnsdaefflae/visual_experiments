@@ -1,6 +1,6 @@
 import math
 import random
-from typing import Sequence, List, Tuple
+from typing import Sequence, List, Tuple, Optional
 
 import numpy
 from PIL import Image
@@ -146,7 +146,7 @@ def _create_noise(grid: Sequence[List[float]], components: Sequence[TILESIZE_RAN
 
 
 class Map:
-    def __init__(self, grid_size: int = 512 + 1, offset: int = 64, value_min: int = 0, value_max: int = 255):
+    def __init__(self, grid_size: int = 512 + 1, offset: int = 64, value_min: int = 0, value_max: int = 255, grid_initial: Optional[Sequence[Sequence[int]]] = None):
         self._grid_size = grid_size
         self._offset = offset
         self._value_min, self._value_max = value_min, value_max
@@ -155,9 +155,10 @@ class Map:
             (offset // 4, self._grid_size / 2048., .25),
         )
 
-        grid_blank = [[-1. for _ in range(grid_size)] for _ in range(grid_size)]
+        if grid_initial is None:
+            grid_initial = [[-1. for _ in range(grid_size)] for _ in range(grid_size)]
 
-        self._tile_current = _create_noise(grid_blank, self._components)
+        self._tile_current = _create_noise(grid_initial, self._components)
 
     def _add_x(self):
         self._tile_current = [
@@ -263,15 +264,28 @@ class Map:
             for _x in range(len(row)):
                 row[_x] = self._value_min + row[_x] * (self._value_max - self._value_min)
 
-        image = Image.fromarray(numpy.uint8(grid_new), "L")
+        image = Image.fromarray(numpy.uint8(grid_new), mode="L")
         image = _render(image)
 
         pyplot.imshow(image, cmap="gist_earth", vmin=self._value_min, vmax=self._value_max)
 
 
+def load_picture() -> Sequence[Sequence[int]]:
+    file_path = "D:/Eigene Dateien/Bilder/picture.jpg"
+    image = Image.open(file_path, mode="r")
+    data_cropped = [[image.getpixel((x + 0, y + 50))[0] / 255. for x in range(257)] for y in range(257)]
+
+    return data_cropped
+
+    image = Image.fromarray(numpy.uint8(data_cropped), mode="L")
+    image = _render(image)
+    pyplot.imshow(image, cmap="gist_earth", vmin=0, vmax=255)
+    pyplot.show()
+
+
 def main():
     size = 256
-    map_tiles = Map(grid_size=size + 1, offset=size // 8)
+    map_tiles = Map(grid_size=size + 1, offset=size // 8, grid_initial=load_picture())
 
     def press(event):
         if event.key == "up":
