@@ -19,7 +19,6 @@ def _draw_grid(grid: Sequence[Sequence[float]]):
     image = _render(image)
 
     pyplot.imshow(image, cmap="gist_earth", vmin=0., vmax=256.)
-    pyplot.show()
 
 
 def is_power_two(n: int) -> bool:
@@ -146,13 +145,13 @@ def _create_noise(grid: Sequence[List[float]], components: Sequence[TILESIZE_RAN
 
 
 class Map:
-    def __init__(self, grid_size: int = 512 + 1, offset: int = 64, value_min: int = 0, value_max: int = 255, grid_initial: Optional[Sequence[Sequence[int]]] = None):
+    def __init__(self, grid_size: int = 512 + 1, tile_size: int = 256, offset: int = 64, value_min: int = 0, value_max: int = 255, grid_initial: Optional[Sequence[Sequence[int]]] = None):
         self._grid_size = grid_size
         self._offset = offset
         self._value_min, self._value_max = value_min, value_max
         self._components = (
-            (offset // 1, self._grid_size / 2048., 1.0),
-            (offset // 4, self._grid_size / 2048., .25),
+            (tile_size, self._grid_size / 2048., 1.0),
+            (tile_size // 4, self._grid_size / 2048., .25),
         )
 
         if grid_initial is None:
@@ -277,15 +276,10 @@ def load_picture() -> Sequence[Sequence[int]]:
 
     return data_cropped
 
-    image = Image.fromarray(numpy.uint8(data_cropped), mode="L")
-    image = _render(image)
-    pyplot.imshow(image, cmap="gist_earth", vmin=0, vmax=255)
-    pyplot.show()
 
-
-def main():
+def _main():
     size = 256
-    map_tiles = Map(grid_size=size + 1, offset=size // 8, grid_initial=load_picture())
+    map_tiles = Map(grid_size=size + 1, tile_size=64, offset=64, grid_initial=load_picture())
 
     def press(event):
         if event.key == "up":
@@ -313,11 +307,81 @@ def main():
         fig.canvas.draw()
 
     fig, ax = pyplot.subplots()
-
     fig.canvas.mpl_connect("key_press_event", press)
-
     map_tiles.draw()
+    pyplot.show()
 
+
+def _add_circle(grid: Sequence[List[float]], x: int, y: int, radius: int):
+    for _y, row in enumerate(grid):
+        for _x in range(len(row)):
+            if (x-_x) ** 2 + (y-_y) ** 2 < radius ** 2:
+                row[_x] = 1.
+
+
+class Position:
+    def __init__(self, x: int, y: int, size: int, speed: int = 10):
+        self.x = x
+        self.y = y
+        self.size = size
+        self.speed = speed
+
+    def up(self):
+        self.y = (self.y - self.speed) % self.size
+
+    def right(self):
+        self.x = (self.x + self.speed) % self.size
+
+    def down(self):
+        self.y = (self.y + self.speed) % self.size
+
+    def left(self):
+        self.x = (self.x - self.speed) % self.size
+
+
+def main():
+    size = 256
+    radius = 8
+
+    pos = Position(size // 2, size // 2, size + 1)
+
+    components = (
+            (128, size / (2048. * 1.), 1.0),
+            (64, size / (2048. * 1.), .25),
+        )
+
+    grid = [[-1. for _ in range(size + 1)] for _ in range(size + 1)]
+    _add_circle(grid, pos.x, pos.y, radius)
+    random.seed(232323423)
+    grid = _create_noise(grid, components)
+
+    def press(event):
+        if event.key == "up":
+            pos.up()
+
+        elif event.key == "left":
+            pos.left()
+
+        elif event.key == "down":
+            pos.down()
+
+        elif event.key == "right":
+            pos.right()
+
+        else:
+            return
+
+        grid = [[-1. for _ in range(size + 1)] for _ in range(size + 1)]
+        _add_circle(grid, pos.x, pos.y, radius)
+        random.seed(232323423)
+        grid = _create_noise(grid, components)
+
+        _draw_grid(grid)
+        fig.canvas.draw()
+
+    fig, ax = pyplot.subplots()
+    fig.canvas.mpl_connect("key_press_event", press)
+    _draw_grid(grid)
     pyplot.show()
 
 
