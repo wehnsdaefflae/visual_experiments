@@ -150,8 +150,8 @@ class Map:
         self._offset = offset
         self._value_min, self._value_max = value_min, value_max
         self._components = (
-            (tile_size, self._grid_size / 2048., 1.0),
-            (tile_size // 4, self._grid_size / 2048., .25),
+            (tile_size, self._grid_size / (4. * 2048.), 1.0),
+            # (tile_size // 4, self._grid_size / 2048., .25),
         )
 
         if grid_initial is None:
@@ -269,47 +269,23 @@ class Map:
         pyplot.imshow(image, cmap="gist_earth", vmin=self._value_min, vmax=self._value_max)
 
 
-def load_picture() -> Sequence[Sequence[int]]:
-    file_path = "D:/Eigene Dateien/Bilder/picture.jpg"
+def load_picture(file_path: str, channel: int = 0, x_offset: int = 0, y_offset: int = 0, size: int = -1) -> Sequence[Sequence[int]]:
     image = Image.open(file_path, mode="r")
-    data_cropped = [[image.getpixel((x + 0, y + 50))[0] / 255. for x in range(257)] for y in range(257)]
+    width, height = image.size
+    if size < 0:
+        size = max(width, height)
+
+    data_cropped = [
+        [
+            image.getpixel((x - x_offset, y - y_offset))[channel] / 255.
+            if 0 <= x - x_offset < width else -1.
+            for x in range(size)
+        ]
+        if 0 <= y - y_offset < height else [-1.] * size
+        for y in range(size)
+    ]
 
     return data_cropped
-
-
-def _main():
-    size = 256
-    map_tiles = Map(grid_size=size + 1, tile_size=64, offset=64, grid_initial=load_picture())
-
-    def press(event):
-        if event.key == "up":
-            map_tiles.move_north()
-
-        elif event.key == "left":
-            map_tiles.move_west()
-
-        elif event.key == "down":
-            map_tiles.move_south()
-
-        elif event.key == "right":
-            map_tiles.move_east()
-
-        elif event.key == "+":
-            map_tiles.zoom_in()
-
-        elif event.key == "-":
-            map_tiles.zoom_out()
-
-        else:
-            return
-
-        map_tiles.draw()
-        fig.canvas.draw()
-
-    fig, ax = pyplot.subplots()
-    fig.canvas.mpl_connect("key_press_event", press)
-    map_tiles.draw()
-    pyplot.show()
 
 
 def _add_circle(grid: Sequence[List[float]], x: int, y: int, radius: int):
@@ -339,7 +315,7 @@ class Position:
         self.x = (self.x - self.speed) % self.size
 
 
-def main():
+def _main():
     size = 256
     radius = 8
 
@@ -382,6 +358,46 @@ def main():
     fig, ax = pyplot.subplots()
     fig.canvas.mpl_connect("key_press_event", press)
     _draw_grid(grid)
+    pyplot.show()
+
+
+def main():
+    size = 1024
+    pic_01 = "D:/Eigene Dateien/Bilder/picture.jpg"
+    pic_02 = "D:/Eigene Dateien/Bilder/600px-Neues_Sat._1_Logo_transparent.png"
+    grid_color = load_picture(pic_02, channel=0, x_offset=200, y_offset=200, size=size+1)
+    grid_opaque = load_picture(pic_02, channel=3, x_offset=200, y_offset=200, size=size+1)
+    grid_color = [[-1. if row_transparency[_x] == 0. else _v for _x, _v in enumerate(row_color)] for row_transparency, row_color in zip(grid_opaque, grid_color)]
+    map_tiles = Map(grid_size=size + 1, tile_size=128, offset=128, grid_initial=grid_color)
+
+    def press(event):
+        if event.key == "up":
+            map_tiles.move_north()
+
+        elif event.key == "left":
+            map_tiles.move_west()
+
+        elif event.key == "down":
+            map_tiles.move_south()
+
+        elif event.key == "right":
+            map_tiles.move_east()
+
+        elif event.key == "+":
+            map_tiles.zoom_in()
+
+        elif event.key == "-":
+            map_tiles.zoom_out()
+
+        else:
+            return
+
+        map_tiles.draw()
+        fig.canvas.draw()
+
+    fig, ax = pyplot.subplots()
+    fig.canvas.mpl_connect("key_press_event", press)
+    map_tiles.draw()
     pyplot.show()
 
 
