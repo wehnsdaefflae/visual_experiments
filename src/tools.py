@@ -26,17 +26,12 @@ def distribute_circular(x: int) -> float:
     return distribute_circular(rec_x) + g(x)
 
 
-def _distribute_linear(x: int) -> float:
-    assert x >= 0
+def trick_distribute_linear(x: int) -> float:
     if x == 0:
         return 0.
     if x == 1:
         return 1.
-    if x == 2:
-        return .5
-    e = 2 * ((x + 1) % 2) - 1
-    a = e / (2 ** math.ceil(math.log(x, 2)))
-    return _distribute_linear((x + 1) // 2) + a
+    return distribute_circular(x - 1)
 
 
 def new_distribute_linear(x: int) -> float:
@@ -44,16 +39,6 @@ def new_distribute_linear(x: int) -> float:
     partition = 0               # get correct partition for x
     position_in_partition = 0.  # position in current segment for x in between [0., size_partitions]
     return size_partitions * partition + position_in_partition
-
-
-def distribute_linear(x: int) -> float:
-    assert x >= 0
-    if x == 0:
-        return 0.
-    g = lambda y: 0 if y == 0 else 1. / (2 ** math.ceil(math.log(y + 1, 2)))
-    h = lambda y: 0 if y == 0 else (2 ** math.ceil(math.log(y + 1, 2))) - y - 1
-    rec_x = h(x - 1)
-    return distribute_circular(rec_x) + g(x)
 
 
 def distance(pos_a: Sequence[float], pos_b: Sequence[float]) -> float:
@@ -115,16 +100,20 @@ def main():
     Y = []
 
     no_points = 100
-    pyplot.xlim((0, no_points))
-    pyplot.ylim((.0, 1.))
 
     for x in range(no_points):
         X.append(x)
+        Y.append(trick_distribute_linear(x))
         # Y.append(distribute_circular(x))
-        Y.append(_distribute_linear(x))
+        # Y.append(_distribute_linear(x))
 
-        pyplot.scatter(X, Y, color="b")
-        pyplot.pause(.5)
+        pyplot.clf()
+        pyplot.xlim((0, no_points))
+        pyplot.ylim((-.1, 1.1))
+        pyplot.axhline(y=0.)
+        pyplot.axhline(y=1.)
+        pyplot.scatter(X, Y, color="b", s=2., alpha=1.)
+        pyplot.pause(.05)
 
     pyplot.show()
     print(X[:10])
