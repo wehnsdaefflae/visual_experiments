@@ -1,6 +1,7 @@
 import math
 from typing import Sequence, Tuple, Iterable
 
+from matplotlib import pyplot
 import arcade
 from arcade.arcade_types import Color
 
@@ -21,6 +22,36 @@ def distribute_circular(x: int) -> float:
     assert x >= 0
     if x == 0:
         return 0.
+    rec_x = h(x - 1)
+    return distribute_circular(rec_x) + g(x)
+
+
+def _distribute_linear(x: int) -> float:
+    assert x >= 0
+    if x == 0:
+        return 0.
+    if x == 1:
+        return 1.
+    if x == 2:
+        return .5
+    e = 2 * ((x + 1) % 2) - 1
+    a = e / (2 ** math.ceil(math.log(x, 2)))
+    return _distribute_linear((x + 1) // 2) + a
+
+
+def new_distribute_linear(x: int) -> float:
+    size_partitions = 0.        # determine number of partitions for x
+    partition = 0               # get correct partition for x
+    position_in_partition = 0.  # position in current segment for x in between [0., size_partitions]
+    return size_partitions * partition + position_in_partition
+
+
+def distribute_linear(x: int) -> float:
+    assert x >= 0
+    if x == 0:
+        return 0.
+    g = lambda y: 0 if y == 0 else 1. / (2 ** math.ceil(math.log(y + 1, 2)))
+    h = lambda y: 0 if y == 0 else (2 ** math.ceil(math.log(y + 1, 2))) - y - 1
     rec_x = h(x - 1)
     return distribute_circular(rec_x) + g(x)
 
@@ -77,3 +108,28 @@ def draw_arc_partitioned(
             )
             # arcade.draw_text(f"{next_angle-last_angle:.4f}", x, y + (_i * 15), each_color)
             last_angle = next_angle
+
+
+def main():
+    X = []
+    Y = []
+
+    no_points = 100
+    pyplot.xlim((0, no_points))
+    pyplot.ylim((.0, 1.))
+
+    for x in range(no_points):
+        X.append(x)
+        # Y.append(distribute_circular(x))
+        Y.append(_distribute_linear(x))
+
+        pyplot.scatter(X, Y, color="b")
+        pyplot.pause(.5)
+
+    pyplot.show()
+    print(X[:10])
+    print(Y[:10])
+
+
+if __name__ == "__main__":
+    main()
