@@ -1,9 +1,48 @@
+import itertools
 import math
-from typing import Sequence, Tuple, Iterable
+from typing import Sequence, Tuple, Iterable, Generator, Optional
 
 from matplotlib import pyplot
 import arcade
 from arcade.arcade_types import Color
+
+
+def halving_recursive() -> Generator[float, None, None]:
+    value = .5
+    yield value
+    for _v in halving_recursive():
+        yield value * _v
+        yield value * (1. + _v)
+
+
+POINT = Tuple[float, ...]
+SPACE = Tuple[POINT, POINT]
+
+
+def _divide(borders: SPACE, center: POINT) -> Tuple[SPACE, ...]:
+    return tuple((_x, center) for _x in itertools.product(*zip(*borders)))
+
+
+def _center(borders: SPACE) -> POINT:
+    point_a, point_b = borders
+    return tuple((_a + _b) / 2. for _a, _b in zip(point_a, point_b))
+
+
+def halving_recursive_multi(dimensionality: int, borders: Optional[SPACE] = None) -> Generator[Tuple[SPACE, POINT], None, None]:
+    if borders is None:
+        borders = tuple(0. for _ in range(dimensionality)), tuple(1. for _ in range(dimensionality))
+
+    spaces = [borders]
+
+    while True:
+        _spaces_new = []
+        while 0 < len(spaces):
+            _each_space = spaces.pop()
+            center = _center(_each_space)
+            _spaces_new.extend(_divide(_each_space, center))
+            yield _each_space, center
+
+        spaces.extend(_spaces_new)
 
 
 def g(x: int) -> float:
@@ -96,14 +135,40 @@ def draw_arc_partitioned(
 
 
 def main():
+    generator_segmentation = halving_recursive_multi(2)
+
+    points = []
+    while True:
+        _space, _point = next(generator_segmentation)
+        points.append(_point)
+        X, Y = zip(*points)
+
+        pyplot.clf()
+        pyplot.xlim((-.1, 1.1))
+        pyplot.ylim((-.1, 1.1))
+        pyplot.axhline(y=0.)
+        pyplot.axhline(y=1.)
+        pyplot.axvline(x=0.)
+        pyplot.axvline(x=1.)
+        pyplot.scatter(X, Y, color="b", s=2., alpha=1.)
+        pyplot.pause(.05)
+        pass
+
+    pyplot.show()
+
+
+def _main():
     X = []
     Y = []
 
     no_points = 100
 
+    generator_segmentation = halving_recursive()
+
     for x in range(no_points):
-        X.append(x)
-        Y.append(trick_distribute_linear(x))
+        X.append(50)
+        Y.append(next(generator_segmentation))
+        # Y.append(trick_distribute_linear(x))
         # Y.append(distribute_circular(x))
         # Y.append(_distribute_linear(x))
 
