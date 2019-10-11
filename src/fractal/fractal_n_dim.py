@@ -16,7 +16,7 @@ def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float) -> 
     # place scaffold every tile_size space
     # until window size < 2:
     #   for each_space in grid with window_size:
-    #       fill pixels (1 for 1d, 5 for 2d, 15 for 3d)  # https://de.wikipedia.org/wiki/Hyperw%C3%BCrfel#Grenzelemente
+    #       fill pixels (1 for 1d, 5 for 2d, 15 for 3d)
     #   window //= 2
 
     assert is_power_two(tile_size)
@@ -37,10 +37,15 @@ def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float) -> 
         if grid[_coordinates] < 0.:
             grid[_coordinates] = random.random()
 
+    half_tile_size = tile_size // 2
     for _coordinates in numpy.ndindex(grid.shape):
-        # skip first line of each dimension
-        if any(_c % tile_size != 0 or _c == 0 for _c in _coordinates):
+        # every center point, better with slices? https://stackoverflow.com/questions/25876640/subsampling-every-nth-entry-in-a-numpy-array
+        if any(_c >= half_tile_size and (_c - half_tile_size) % tile_size != 0 for _c in _coordinates):
             continue
+
+        # https://de.wikipedia.org/wiki/Hyperw%C3%BCrfel#Grenzelemente
+        no__edges = grid.ndim * 2. ** (grid.ndim - 1)
+        # itertools over all points that share at least one value along the same dimension
 
         # fit into [n, n+tile_size] _including_ borders
         generate_tiles = uniform_areal_segmentation(grid.ndim)
