@@ -32,7 +32,7 @@ def uniform_areal_segmentation(dimensionality: int) -> Generator[Tuple[SPACE, PO
             _spaces_new.extend(_divide(_each_space, center))
             yield _each_space, center
 
-        spaces.extend(_spaces_new)
+        spaces = _spaces_new
 
 
 def g(x: int) -> float:
@@ -130,7 +130,9 @@ def main():
     points = []
     while True:
         _space, _point = next(generator_segmentation)
-        points.append(_point)
+        # points.append(_point)
+        points.append(_space[0])
+        points.append(_space[1])
         X, Y = zip(*points)
 
         pyplot.clf()

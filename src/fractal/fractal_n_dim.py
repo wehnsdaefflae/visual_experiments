@@ -1,46 +1,56 @@
+import math
 import random
-from typing import List
+from typing import List, Tuple, Any
+
+import numpy
+
+from src.tools import uniform_areal_segmentation
 
 
 def is_power_two(n: int) -> bool:
     return n and (not(n & (n - 1)))
 
 
-def create_1d_noise(grid: List[float], tile_size: int, randomization: float) -> List[float]:
-    assert is_power_two(tile_size - 1)
-    len_grid = len(grid)
-    assert tile_size < len_grid
+def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float) -> numpy.ndarray:
+    # create over sized grid
+    # place scaffold every tile_size space
+    # until window size < 2:
+    #   for each_space in grid with window_size:
+    #       fill pixels (1 for 1d, 5 for 2d, 15 for 3d)  # https://de.wikipedia.org/wiki/Hyperw%C3%BCrfel#Grenzelemente
+    #   window //= 2
 
-    offsets = random.randint(0, tile_size - 1),
-    carry_over = [-1.] * tile_size
+    assert is_power_two(tile_size)
+    _shape = _grid.shape
+    assert len(set(_shape)) == 1
 
-    def grid_set(x: int, value: float):
-        if _x < offsets[0] and carry_over[x] < 0.:
-            carry_over[x] = value
-        elif _x >= len_grid + offsets[0] and carry_over[x - len_grid] < 0.:
-            carry_over[x - len_grid] = value
-        elif grid[x - offsets[0]] < 0.:
-            grid[x - offsets[0]] = value
+    offsets = tuple(random.randint(0, tile_size - 1) for _ in range(_grid.ndim))
 
-    def grid_get(x: int) -> float:
-        if _x < offsets[0]:
-            return carry_over[x]
-        if _x >= len_grid + offsets[0]:
-            return carry_over[x - len_grid]
-        return grid[x - offsets[0]]
+    shape_new = tuple(int(math.ceil((_s + _o) / tile_size)) * tile_size for _s, _o in zip(_shape, offsets))
 
-    # scaffold
-    no_tiles = len_grid // tile_size + 1
-    for _x in range(0, no_tiles * tile_size + 1, tile_size):
-        grid_set(_x, random.random())
+    grid = numpy.pad(array=_grid, pad_width=((_sn - _s, 0) for _sn, _s in zip(shape_new, _shape)), mode="constant", constant_values=-1.)
 
-    # filling
-    while 1 < tile_size:
-        for _x in range(tile_size // 2, (no_tiles - 1) * tile_size + 1, tile_size):
-            pass
-        tile_size //= 2
+    # https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndindex.html#numpy.ndindex
 
-    pass
+    for _coordinates in numpy.ndindex(grid.shape):
+        if any(_c % tile_size != 0 for _c in _coordinates):
+            continue
+        if grid[_coordinates] < 0.:
+            grid[_coordinates] = random.random()
+
+    for _coordinates in numpy.ndindex(grid.shape):
+        # skip first line of each dimension
+        if any(_c % tile_size != 0 or _c == 0 for _c in _coordinates):
+            continue
+
+        # fit into [n, n+tile_size] _including_ borders
+        generate_tiles = uniform_areal_segmentation(grid.ndim)
+        for _each_space, _each_center in generate_tiles:
+            _space_converted = tuple(tuple(int(math.floor(_c * (tile_size + 1))) for _c in _each_point) for _each_point in _each_space)
+            _center_converted = tuple(int(math.floor(_c * (tile_size + 1))) for _c in _each_center)
+
+        # do stuff
+
+    return grid[tuple(slice(_o, _s) for _s, _o in zip(grid.shape, offsets))]
 
 
 def main():
