@@ -1,18 +1,10 @@
 import itertools
 import math
-from typing import Sequence, Tuple, Iterable, Generator, Optional
+from typing import Sequence, Tuple, Generator, Optional
 
 from matplotlib import pyplot
 import arcade
 from arcade.arcade_types import Color
-
-
-def halving_recursive() -> Generator[float, None, None]:
-    value = .5
-    yield value
-    for _v in halving_recursive():
-        yield value * _v
-        yield value * (1. + _v)
 
 
 POINT = Tuple[float, ...]
@@ -28,10 +20,8 @@ def _center(borders: SPACE) -> POINT:
     return tuple((_a + _b) / 2. for _a, _b in zip(point_a, point_b))
 
 
-def halving_recursive_multi(dimensionality: int, borders: Optional[SPACE] = None) -> Generator[Tuple[SPACE, POINT], None, None]:
-    if borders is None:
-        borders = tuple(0. for _ in range(dimensionality)), tuple(1. for _ in range(dimensionality))
-
+def uniform_areal_segmentation(dimensionality: int) -> Generator[Tuple[SPACE, POINT], None, None]:
+    borders = tuple(0. for _ in range(dimensionality)), tuple(1. for _ in range(dimensionality))
     spaces = [borders]
 
     while True:
@@ -135,7 +125,7 @@ def draw_arc_partitioned(
 
 
 def main():
-    generator_segmentation = halving_recursive_multi(2)
+    generator_segmentation = uniform_areal_segmentation(2)
 
     points = []
     while True:
@@ -155,34 +145,6 @@ def main():
         pass
 
     pyplot.show()
-
-
-def _main():
-    X = []
-    Y = []
-
-    no_points = 100
-
-    generator_segmentation = halving_recursive()
-
-    for x in range(no_points):
-        X.append(50)
-        Y.append(next(generator_segmentation))
-        # Y.append(trick_distribute_linear(x))
-        # Y.append(distribute_circular(x))
-        # Y.append(_distribute_linear(x))
-
-        pyplot.clf()
-        pyplot.xlim((0, no_points))
-        pyplot.ylim((-.1, 1.1))
-        pyplot.axhline(y=0.)
-        pyplot.axhline(y=1.)
-        pyplot.scatter(X, Y, color="b", s=2., alpha=1.)
-        pyplot.pause(.05)
-
-    pyplot.show()
-    print(X[:10])
-    print(Y[:10])
 
 
 if __name__ == "__main__":
