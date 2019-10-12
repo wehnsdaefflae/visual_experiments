@@ -38,7 +38,7 @@ def _get_cube_corners(cube: Tuple[Tuple[int, ...], Tuple[int, ...]]) -> Tuple[Tu
     )
 
 
-def _get_corner_edges(corners: Tuple[Tuple[int, ...], ...]) -> Tuple[Tuple[Tuple[int, ...], Tuple[int, ...]], ...]:
+def _get_cube_corner_edges(corners: Tuple[Tuple[int, ...], ...]) -> Tuple[Tuple[Tuple[int, ...], Tuple[int, ...]], ...]:
     # (2, 4), (5, 4), (5, 1), (2, 1) ->
     #   (2, 4), (5, 4)
     #   (5, 4), (5, 1)
@@ -92,7 +92,7 @@ def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float) -> 
             center = _scale_point_integer(_each_center, tile_size)
 
             corners = _get_cube_corners(cube)
-            edges = _get_corner_edges(corners)
+            edges = _get_cube_corner_edges(corners)
             sum_interpolated = 0.
             for _each_edge in edges:
                 _value_interpolated = (grid[_each_edge[0]] + grid[_each_edge[1]]) / 2.
