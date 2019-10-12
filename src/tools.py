@@ -8,30 +8,30 @@ from arcade.arcade_types import Color
 
 
 POINT = Tuple[float, ...]
-SPACE = Tuple[POINT, POINT]
+CUBE = Tuple[POINT, POINT]
 
 
-def _divide(borders: SPACE, center: POINT) -> Tuple[SPACE, ...]:
+def _divide(borders: CUBE, center: POINT) -> Tuple[CUBE, ...]:
     return tuple((_x, center) for _x in itertools.product(*zip(*borders)))
 
 
-def _center(borders: SPACE) -> POINT:
+def _center(borders: CUBE) -> POINT:
     point_a, point_b = borders
     return tuple((_a + _b) / 2. for _a, _b in zip(point_a, point_b))
 
 
-def uniform_areal_segmentation(dimensionality: int) -> Generator[Tuple[SPACE, POINT], None, None]:
+def uniform_areal_segmentation(dimensionality: int) -> Generator[Tuple[CUBE, POINT], None, None]:
     borders = tuple(0. for _ in range(dimensionality)), tuple(1. for _ in range(dimensionality))
     spaces = [borders]
 
     while True:
         _spaces_new = []
         while 0 < len(spaces):
-            _each_space = spaces.pop()
-            center = _center(_each_space)
-            _segments = _divide(_each_space, center)
+            _each_cube = spaces.pop()
+            center = _center(_each_cube)
+            _segments = _divide(_each_cube, center)
             _spaces_new.extend(_segments)
-            yield _each_space, center
+            yield _each_cube, center
 
         spaces = _spaces_new
 
@@ -62,13 +62,6 @@ def trick_distribute_linear(x: int) -> float:
     if x == 1:
         return 1.
     return distribute_circular(x - 1)
-
-
-def new_distribute_linear(x: int) -> float:
-    size_partitions = 0.        # determine number of partitions for x
-    partition = 0               # get correct partition for x
-    position_in_partition = 0.  # position in current segment for x in between [0., size_partitions]
-    return size_partitions * partition + position_in_partition
 
 
 def distance(pos_a: Sequence[float], pos_b: Sequence[float]) -> float:

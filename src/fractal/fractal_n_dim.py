@@ -62,10 +62,14 @@ def _randomize(value: float, randomization: float, bound_upper: float = 1., boun
     return min(bound_upper, max(bound_lower, value + random.uniform(-randomization, randomization)))
 
 
-def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float) -> numpy.ndarray:
+def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float, wrap: bool = False) -> numpy.ndarray:
     assert is_power_two(tile_size)
     _shape = _grid.shape
     assert len(set(_shape)) == 1
+
+    # todo: implement wrap
+    # grid size must be divisible by tile_size
+    # without wrap nu such restriction
 
     offsets = tuple(random.randint(0, tile_size - 1) for _ in range(_grid.ndim))
     shape = tuple(int(math.ceil((_s + _o) / tile_size)) * tile_size + 1 for _s, _o in zip(_shape, offsets))
