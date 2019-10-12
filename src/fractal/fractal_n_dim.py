@@ -68,6 +68,7 @@ def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float, wra
     assert len(set(_shape)) == 1
 
     # todo: implement wrap
+    # determine which dimensions to wrap
     # grid size must be divisible by tile_size
     # without wrap nu such restriction
 
