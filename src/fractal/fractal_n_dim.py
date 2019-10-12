@@ -1,5 +1,7 @@
+import itertools
 import math
 import random
+from functools import reduce
 from typing import List, Tuple, Any
 
 import numpy
@@ -16,18 +18,44 @@ def _scale_point_integer(point_normalized: Tuple[float, ...], factor: int, inclu
 
 
 def _get_cube_corners(cube: Tuple[Tuple[int, ...], Tuple[int, ...]]) -> Tuple[Tuple[int, ...], ...]:
-    pass
+    # (1, 4, 2), (6, 0, 3) ->
+    #   (1, 4, 2)
+    #   (1, 4, 3)
+    #   (1, 0, 2)
+    #   (1, 0, 3)
+    #   (6, 4, 2)
+    #   (6, 4, 3)
+    #   (6, 0, 2)
+    #   (6, 0, 3)
+
+    dim, = set(len(_point) for _point in cube)
+    return tuple(
+        tuple(
+            _corner[_d]
+            for _d in range(dim)
+        )
+        for _corner in itertools.combinations_with_replacement(cube, dim)
+    )
 
 
 def _get_corner_edges(corners: Tuple[Tuple[int, ...], ...]) -> Tuple[Tuple[Tuple[int, ...], Tuple[int, ...]], ...]:
-    dim, = set(len(_v) for _v in corners)
+    # (2, 4), (5, 4), (5, 1), (2, 1) ->
+    #   (2, 4), (5, 4)
+    #   (5, 4), (5, 1)
+    #   (5, 1), (2, 1)
+    #   (2, 1), (2, 4)
+
     # https://de.wikipedia.org/wiki/Hyperw%C3%BCrfel#Grenzelemente
-    no__edges = dim * 2. ** (dim - 1)
-    pass
+    # no__edges = dim * 2. ** (dim - 1)
+    return tuple(
+        (_ca, _cb)
+        for _ca, _cb in itertools.combinations(corners, 2)
+        if reduce(lambda _x, _y: int(_x[0] != _x[1]) + _y, zip(_ca, _cb), initial=0) == 1
+    )
 
 
 def _get_edge_midpoint(edge: Tuple[Tuple[int, ...], Tuple[int, ...]]) -> Tuple[int, ...]:
-    pass
+    return tuple((_a + _b) // 2 for _a, _b in zip(*edge))
 
 
 def _randomize(value: float, randomization: float, bound_upper: float = 1., bound_lower: float = 0.) -> float:
@@ -48,6 +76,7 @@ def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float) -> 
     for _coordinates in numpy.ndindex(grid.shape):              # https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndindex.html#numpy.ndindex
         if any(_c % tile_size != 0 for _c in _coordinates):     # https://stackoverflow.com/questions/25876640/subsampling-every-nth-entry-in-a-numpy-array
             continue
+
         # set scaffold
         if grid[_coordinates] < 0.:
             grid[_coordinates] = random.random()
@@ -59,8 +88,8 @@ def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float) -> 
         # fill segment
         generate_tiles = uniform_areal_segmentation(dim)
         for _each_space, _each_center in generate_tiles:
-            _center_converted = _scale_point_integer(_each_center, tile_size)
             cube = _scale_point_integer(_each_space[0], tile_size), _scale_point_integer(_each_space[1], tile_size)
+            center = _scale_point_integer(_each_center, tile_size)
 
             corners = _get_cube_corners(cube)
             edges = _get_corner_edges(corners)
@@ -73,9 +102,8 @@ def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float) -> 
                     grid[_mid_point] = _randomize(_value_interpolated, randomization)
 
             _value_interpolated = sum_interpolated / len(edges)
-            midpoint_cube = tuple((_a + _b) // 2 for _a, _b in zip(*cube))
-            if grid[midpoint_cube] < 0.:
-                grid[midpoint_cube] = _randomize(_value_interpolated, randomization)
+            if grid[center] < 0.:
+                grid[center] = _randomize(_value_interpolated, randomization)
 
             if 2 * dim >= sum(abs(_a - _b) for _a, _b in zip(*cube)):
                 break
