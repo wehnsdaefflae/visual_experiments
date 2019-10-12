@@ -5,6 +5,8 @@ from functools import reduce
 from typing import List, Tuple, Any
 
 import numpy
+from PIL import Image
+from matplotlib import pyplot
 
 from src.tools import uniform_areal_segmentation
 
@@ -13,8 +15,8 @@ def is_power_two(n: int) -> bool:
     return n and (not(n & (n - 1)))
 
 
-def _scale_point_integer(point_normalized: Tuple[float, ...], factor: int, include_borders: bool = True) -> Tuple[int, ...]:
-    return tuple(int(math.floor(_v * (factor + int(include_borders)))) for _v in point_normalized)
+def _scale_point_integer(point_normalized: Tuple[float, ...], factor: int) -> Tuple[int, ...]:
+    return tuple(int(math.floor(_v * factor)) for _v in point_normalized)
 
 
 def _get_cube_corners(cube: Tuple[Tuple[int, ...], Tuple[int, ...]]) -> Tuple[Tuple[int, ...], ...]:
@@ -28,7 +30,18 @@ def _get_cube_corners(cube: Tuple[Tuple[int, ...], Tuple[int, ...]]) -> Tuple[Tu
     #   (6, 0, 2)
     #   (6, 0, 3)
 
+    # (5, 2), (4, 0) ->
+    #
+
     dim, = set(len(_point) for _point in cube)
+    return tuple(
+        tuple(
+            cube[_i][_d]
+            for _d, _i in enumerate(_indices)
+        )
+        for _indices in itertools.product(*((0, 1) for _ in range(dim)))
+    )
+
     return tuple(
         tuple(
             _corner[_d]
@@ -50,7 +63,7 @@ def _get_cube_corner_edges(corners: Tuple[Tuple[int, ...], ...]) -> Tuple[Tuple[
     return tuple(
         (_ca, _cb)
         for _ca, _cb in itertools.combinations(corners, 2)
-        if reduce(lambda _x, _y: int(_x[0] != _x[1]) + _y, zip(_ca, _cb), initial=0) == 1
+        if sum(int(_a != _b) for _a, _b in zip(_ca, _cb)) == 1
     )
 
 
@@ -74,7 +87,7 @@ def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float, wra
 
     offsets = tuple(random.randint(0, tile_size - 1) for _ in range(_grid.ndim))
     shape = tuple(int(math.ceil((_s + _o) / tile_size)) * tile_size + 1 for _s, _o in zip(_shape, offsets))
-    grid = numpy.pad(array=_grid, pad_width=((_sn - _s, 0) for _sn, _s in zip(shape, _shape)), mode="constant", constant_values=-1.)
+    grid = numpy.pad(array=_grid, pad_width=tuple((_sn - _s, 0) for _sn, _s in zip(shape, _shape)), mode="constant", constant_values=-1.)
     assert grid.shape == shape
     dim = grid.ndim
 
@@ -94,6 +107,9 @@ def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float, wra
         generate_tiles = uniform_areal_segmentation(dim)
         for _each_space, _each_center in generate_tiles:
             cube = _scale_point_integer(_each_space[0], tile_size), _scale_point_integer(_each_space[1], tile_size)
+            if sum(abs(_a - _b) for _a, _b in zip(*cube)) < 2 * dim:
+                break
+
             center = _scale_point_integer(_each_center, tile_size)
 
             corners = _get_cube_corners(cube)
@@ -110,14 +126,39 @@ def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float, wra
             if grid[center] < 0.:
                 grid[center] = _randomize(_value_interpolated, randomization)
 
-            if 2 * dim >= sum(abs(_a - _b) for _a, _b in zip(*cube)):
-                break
 
     return grid[tuple(slice(_sn - _s, _sn) for _sn, _s in zip(shape, _shape))]
 
 
+def _rectangle(im: Image, x: int, y: int, size: int):
+    width, height = im.size
+    for _v in range(size):
+        if _v + x < width:
+            im.putpixel((_v + x, y), 255)
+            if y + size < height:
+                im.putpixel((_v + x, y + size), 255)
+        if _v + y < height:
+            im.putpixel((x, _v + y), 255)
+            if x + size < width:
+                im.putpixel((x + size, _v + y), 255)
+
+
+def draw(array: numpy.ndarray):
+    grid_new = array.copy()
+
+    image = Image.fromarray(numpy.uint8(grid_new), mode="L")
+    width, height = image.size
+    _rectangle(image, width // 4, height // 4, width // 2)
+
+    pyplot.imshow(image, cmap="gist_earth", vmin=0., vmax=1.)
+
+    pyplot.show()
+
+
 def main():
-    pass
+    array = numpy.full((16, 16), -1.)
+    noised = create_noise(array, 4, .05, wrap=False)
+    draw(noised)
 
 
 if __name__ == "__main__":
