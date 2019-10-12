@@ -11,51 +11,76 @@ def is_power_two(n: int) -> bool:
     return n and (not(n & (n - 1)))
 
 
-def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float) -> numpy.ndarray:
-    # create over sized grid
-    # place scaffold every tile_size space
-    # until window size < 2:
-    #   for each_space in grid with window_size:
-    #       fill pixels (1 for 1d, 5 for 2d, 15 for 3d)
-    #   window //= 2
+def _scale_point_integer(point_normalized: Tuple[float, ...], factor: int, include_borders: bool = True) -> Tuple[int, ...]:
+    return tuple(int(math.floor(_v * (factor + int(include_borders)))) for _v in point_normalized)
 
+
+def _get_cube_corners(cube: Tuple[Tuple[int, ...], Tuple[int, ...]]) -> Tuple[Tuple[int, ...], ...]:
+    pass
+
+
+def _get_corner_edges(corners: Tuple[Tuple[int, ...], ...]) -> Tuple[Tuple[Tuple[int, ...], Tuple[int, ...]], ...]:
+    dim, = set(len(_v) for _v in corners)
+    # https://de.wikipedia.org/wiki/Hyperw%C3%BCrfel#Grenzelemente
+    no__edges = dim * 2. ** (dim - 1)
+    pass
+
+
+def _get_edge_midpoint(edge: Tuple[Tuple[int, ...], Tuple[int, ...]]) -> Tuple[int, ...]:
+    pass
+
+
+def _randomize(value: float, randomization: float, bound_upper: float = 1., bound_lower: float = 0.) -> float:
+    return min(bound_upper, max(bound_lower, value + random.uniform(-randomization, randomization)))
+
+
+def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float) -> numpy.ndarray:
     assert is_power_two(tile_size)
     _shape = _grid.shape
     assert len(set(_shape)) == 1
 
     offsets = tuple(random.randint(0, tile_size - 1) for _ in range(_grid.ndim))
+    shape = tuple(int(math.ceil((_s + _o) / tile_size)) * tile_size + 1 for _s, _o in zip(_shape, offsets))
+    grid = numpy.pad(array=_grid, pad_width=((_sn - _s, 0) for _sn, _s in zip(shape, _shape)), mode="constant", constant_values=-1.)
+    assert grid.shape == shape
+    dim = grid.ndim
 
-    shape_new = tuple(int(math.ceil((_s + _o) / tile_size)) * tile_size for _s, _o in zip(_shape, offsets))
-
-    grid = numpy.pad(array=_grid, pad_width=((_sn - _s, 0) for _sn, _s in zip(shape_new, _shape)), mode="constant", constant_values=-1.)
-
-    # https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndindex.html#numpy.ndindex
-
-    for _coordinates in numpy.ndindex(grid.shape):
-        if any(_c % tile_size != 0 for _c in _coordinates):
+    for _coordinates in numpy.ndindex(grid.shape):              # https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndindex.html#numpy.ndindex
+        if any(_c % tile_size != 0 for _c in _coordinates):     # https://stackoverflow.com/questions/25876640/subsampling-every-nth-entry-in-a-numpy-array
             continue
+        # set scaffold
         if grid[_coordinates] < 0.:
             grid[_coordinates] = random.random()
 
-    half_tile_size = tile_size // 2
-    for _coordinates in numpy.ndindex(grid.shape):
-        # every center point, better with slices? https://stackoverflow.com/questions/25876640/subsampling-every-nth-entry-in-a-numpy-array
-        if any(_c >= half_tile_size and (_c - half_tile_size) % tile_size != 0 for _c in _coordinates):
+        if any(_c == 0 for _c in _coordinates):
+            # skip first lines
             continue
 
-        # https://de.wikipedia.org/wiki/Hyperw%C3%BCrfel#Grenzelemente
-        no__edges = grid.ndim * 2. ** (grid.ndim - 1)
-        # itertools over all points that share at least one value along the same dimension
-
-        # fit into [n, n+tile_size] _including_ borders
-        generate_tiles = uniform_areal_segmentation(grid.ndim)
+        # fill segment
+        generate_tiles = uniform_areal_segmentation(dim)
         for _each_space, _each_center in generate_tiles:
-            _space_converted = tuple(tuple(int(math.floor(_c * (tile_size + 1))) for _c in _each_point) for _each_point in _each_space)
-            _center_converted = tuple(int(math.floor(_c * (tile_size + 1))) for _c in _each_center)
+            _center_converted = _scale_point_integer(_each_center, tile_size)
+            cube = _scale_point_integer(_each_space[0], tile_size), _scale_point_integer(_each_space[1], tile_size)
 
-        # do stuff
+            corners = _get_cube_corners(cube)
+            edges = _get_corner_edges(corners)
+            sum_interpolated = 0.
+            for _each_edge in edges:
+                _value_interpolated = (grid[_each_edge[0]] + grid[_each_edge[1]]) / 2.
+                sum_interpolated += _value_interpolated
+                _mid_point = _get_edge_midpoint(_each_edge)
+                if grid[_mid_point] < 0.:
+                    grid[_mid_point] = _randomize(_value_interpolated, randomization)
 
-    return grid[tuple(slice(_o, _s) for _s, _o in zip(grid.shape, offsets))]
+            _value_interpolated = sum_interpolated / len(edges)
+            midpoint_cube = tuple((_a + _b) // 2 for _a, _b in zip(*cube))
+            if grid[midpoint_cube] < 0.:
+                grid[midpoint_cube] = _randomize(_value_interpolated, randomization)
+
+            if 2 * dim >= sum(abs(_a - _b) for _a, _b in zip(*cube)):
+                break
+
+    return grid[tuple(slice(_sn - _s, _sn) for _sn, _s in zip(shape, _shape))]
 
 
 def main():

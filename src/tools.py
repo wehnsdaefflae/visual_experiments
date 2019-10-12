@@ -29,7 +29,8 @@ def uniform_areal_segmentation(dimensionality: int) -> Generator[Tuple[SPACE, PO
         while 0 < len(spaces):
             _each_space = spaces.pop()
             center = _center(_each_space)
-            _spaces_new.extend(_divide(_each_space, center))
+            _segments = _divide(_each_space, center)
+            _spaces_new.extend(_segments)
             yield _each_space, center
 
         spaces = _spaces_new
