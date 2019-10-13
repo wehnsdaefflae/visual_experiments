@@ -2,7 +2,7 @@ import itertools
 import math
 import random
 from functools import reduce
-from typing import List, Tuple, Any
+from typing import List, Tuple, Any, Optional
 
 import numpy
 from PIL import Image
@@ -15,8 +15,10 @@ def is_power_two(n: int) -> bool:
     return n and (not(n & (n - 1)))
 
 
-def _scale_point_integer(point_normalized: Tuple[float, ...], factor: int) -> Tuple[int, ...]:
-    return tuple(int(math.floor(_v * factor)) for _v in point_normalized)
+def _scale_point_integer(point_normalized: Tuple[float, ...], factor: int, offsets: Optional[Tuple[int, ...]] = None) -> Tuple[int, ...]:
+    if offsets is None:
+        return tuple(int(math.floor(_v * factor)) for _v in point_normalized)
+    return tuple(int(math.floor(_v * factor)) + _o for _v, _o in zip(point_normalized, offsets))
 
 
 def _get_cube_corners(cube: Tuple[Tuple[int, ...], Tuple[int, ...]]) -> Tuple[Tuple[int, ...], ...]:
@@ -106,11 +108,12 @@ def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float, wra
         # fill segment
         generate_tiles = uniform_areal_segmentation(dim)
         for _each_space, _each_center in generate_tiles:
-            cube = _scale_point_integer(_each_space[0], tile_size), _scale_point_integer(_each_space[1], tile_size)
-            if sum(abs(_a - _b) for _a, _b in zip(*cube)) < 2 * dim:
-                break
+            _offsets = tuple(_c - tile_size for _c in _coordinates)
+            cube = _scale_point_integer(_each_space[0], tile_size, offsets=_offsets), _scale_point_integer(_each_space[1], tile_size, offsets=_offsets)
 
-            center = _scale_point_integer(_each_center, tile_size)
+            manhattan_diagonal = sum(abs(_a - _b) for _a, _b in zip(*cube))
+            if manhattan_diagonal < 2 * dim:
+                break
 
             corners = _get_cube_corners(cube)
             edges = _get_cube_corner_edges(corners)
@@ -122,42 +125,41 @@ def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float, wra
                 if grid[_mid_point] < 0.:
                     grid[_mid_point] = _randomize(_value_interpolated, randomization)
 
+            center = _scale_point_integer(_each_center, tile_size, offsets=_offsets)
             _value_interpolated = sum_interpolated / len(edges)
             if grid[center] < 0.:
                 grid[center] = _randomize(_value_interpolated, randomization)
 
+    return grid[tuple(slice((_sn - _s) // 2, _sn - (_sn - _s) // 2) for _sn, _s in zip(shape, _shape))]
 
-    return grid[tuple(slice(_sn - _s, _sn) for _sn, _s in zip(shape, _shape))]
 
-
-def _rectangle(im: Image, x: int, y: int, size: int):
-    width, height = im.size
+def _rectangle(im: numpy.ndarray, x: int, y: int, size: int):
+    width, height = im.shape
     for _v in range(size):
         if _v + x < width:
-            im.putpixel((_v + x, y), 255)
+            im[_v + x, y] = 1.
             if y + size < height:
-                im.putpixel((_v + x, y + size), 255)
+                im[_v + x, y + size] = 1.
         if _v + y < height:
-            im.putpixel((x, _v + y), 255)
+            im[x, _v + y] = 1.
             if x + size < width:
-                im.putpixel((x + size, _v + y), 255)
+                im[x + size, _v + y] = 1.
 
 
 def draw(array: numpy.ndarray):
     grid_new = array.copy()
 
-    image = Image.fromarray(numpy.uint8(grid_new), mode="L")
-    width, height = image.size
-    _rectangle(image, width // 4, height // 4, width // 2)
+    width, height = grid_new.shape
+    _rectangle(grid_new, width // 4, height // 4, width // 2)
 
-    pyplot.imshow(image, cmap="gist_earth", vmin=0., vmax=1.)
+    pyplot.imshow(grid_new, cmap="gist_earth", vmin=0., vmax=1.)
 
     pyplot.show()
 
 
 def main():
-    array = numpy.full((16, 16), -1.)
-    noised = create_noise(array, 4, .05, wrap=False)
+    array = numpy.full((512, 512), -1.)
+    noised = create_noise(array, 128, .16, wrap=False)
     draw(noised)
 
 
