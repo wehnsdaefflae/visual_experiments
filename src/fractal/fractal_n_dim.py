@@ -10,7 +10,7 @@ import numpy
 from PIL import Image
 from matplotlib import pyplot
 
-from src.tools import uniform_areal_segmentation
+from src.tools import uniform_areal_segmentation, Timer
 
 
 def is_power_two(n: int) -> bool:
@@ -89,7 +89,9 @@ def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float, wra
             assert each_dimension % tile_size == 0
 
     offsets = tuple(random.randint(0, tile_size - 1) for _ in range(_grid.ndim))
-    shape = tuple(int(math.ceil((_s + _o) / tile_size)) * tile_size + 1 for _s, _o in zip(_shape, offsets))
+    shape_tiles = tuple(int(math.ceil((_s + _o) / tile_size)) for _s, _o in zip(_shape, offsets))
+    shape = tuple(_t * tile_size + 1 for _t in shape_tiles)
+    no_tiles = reduce(lambda _x, _y: _x * _y, shape_tiles, 1)
     grid = numpy.pad(array=_grid, pad_width=tuple((_sn - _s, 0) for _sn, _s in zip(shape, _shape)), mode="constant", constant_values=-1.)
     assert grid.shape == shape
     dim = grid.ndim
@@ -102,6 +104,7 @@ def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float, wra
         if grid[_coordinates] < 0.:
             grid[_coordinates] = random.random()
 
+    no_tiles_done = 0
     for _coordinates in numpy.ndindex(grid.shape):
         # skip scaffolds and first lines
         if any(_c == 0 or _c % tile_size != 0 for _c in _coordinates):
@@ -135,6 +138,9 @@ def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float, wra
                         grid[_point] = _value
                 sums.clear()
 
+        no_tiles_done += 1
+        print(f"finished {no_tiles_done:d} of {no_tiles:d} tiles...")
+
     return grid[tuple(slice((_sn - _s) // 2, _sn - (_sn - _s) // 2) for _sn, _s in zip(shape, _shape))]
 
 
@@ -152,20 +158,21 @@ def _rectangle(im: numpy.ndarray, x: int, y: int, size: int):
 
 
 def draw(array: numpy.ndarray):
-    grid_new = array.copy()
-
-    width, height = grid_new.shape
-    # _rectangle(grid_new, width // 4, height // 4, width // 2)
-
-    # pyplot.imshow(grid_new, cmap="gist_earth", vmin=0., vmax=1., interpolation="gaussian")
-    pyplot.imshow(grid_new, cmap="gist_earth", vmin=0., vmax=1.)
+    # pyplot.imshow(array, cmap="gist_earth", vmin=0., vmax=1., interpolation="gaussian")
+    pyplot.imshow(array, cmap="gist_earth", vmin=0., vmax=1.)
     pyplot.colorbar()
 
 
 def main():
     size = 64
-    array = numpy.full((size, size, size), -1.)
-    noised = create_noise(array, size // 4, size / 256., wrap=None)
+
+    array_a = numpy.full((size, size, size), -1.)
+    noised_a = create_noise(array_a, size // 4, size / 512., wrap=None)
+
+    array_b = numpy.full((size, size, size), -1.)
+    noised_b = create_noise(array_b, size // 2, size / 256., wrap=None)
+
+    noised = (noised_a + noised_b) / 2.
 
     _i = 0
     while True:
@@ -173,7 +180,7 @@ def main():
         print(f"layer {_i:d}")
         draw(noised[_i])
         pyplot.pause(.05)
-        _i = (_i + 1) % len(array)
+        _i = (_i + 1) % size
 
     pyplot.show()
 

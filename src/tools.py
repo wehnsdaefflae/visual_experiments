@@ -1,5 +1,6 @@
 import itertools
 import math
+import time
 from typing import Sequence, Tuple, Generator, Optional
 
 from matplotlib import pyplot
@@ -116,6 +117,27 @@ def draw_arc_partitioned(
             )
             # arcade.draw_text(f"{next_angle-last_angle:.4f}", x, y + (_i * 15), each_color)
             last_angle = next_angle
+
+
+class Timer:
+    _last_time = -1  # type: int
+
+    @staticmethod
+    def time_passed(passed_time_ms: int) -> bool:
+        if 0 >= passed_time_ms:
+            raise ValueError("Only positive millisecond values allowed.")
+
+        this_time = round(time.time() * 1000.)
+
+        if Timer._last_time < 0:
+            Timer._last_time = this_time
+            return False
+
+        elif this_time - Timer._last_time < passed_time_ms:
+            return False
+
+        Timer._last_time = this_time
+        return True
 
 
 def main():
