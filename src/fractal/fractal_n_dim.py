@@ -1,8 +1,10 @@
+# from __future__ import annotations
+
 import itertools
 import math
 import random
 from functools import reduce
-from typing import List, Tuple, Any, Optional
+from typing import List, Tuple, Any, Optional, Iterable, Union, Set
 
 import numpy
 from PIL import Image
@@ -21,7 +23,7 @@ def _scale_point_integer(point_normalized: Tuple[float, ...], factor: int, offse
     return tuple(int(math.floor(_v * factor)) + _o for _v, _o in zip(point_normalized, offsets))
 
 
-def _get_cube_corners(cube: Tuple[Tuple[int, ...], Tuple[int, ...]]) -> Tuple[Tuple[int, ...], ...]:
+def _get_cube_corners(cube: Tuple[Tuple[int, ...], Tuple[int, ...]]) -> Set[Tuple[int, ...]]:
     # (1, 4, 2), (6, 0, 3) ->
     #   (1, 4, 2)
     #   (1, 4, 3)
@@ -36,7 +38,7 @@ def _get_cube_corners(cube: Tuple[Tuple[int, ...], Tuple[int, ...]]) -> Tuple[Tu
     #
 
     dim, = set(len(_point) for _point in cube)
-    return tuple(
+    return set(
         tuple(
             cube[_i][_d]
             for _d, _i in enumerate(_indices)
@@ -44,16 +46,16 @@ def _get_cube_corners(cube: Tuple[Tuple[int, ...], Tuple[int, ...]]) -> Tuple[Tu
         for _indices in itertools.product(*((0, 1) for _ in range(dim)))
     )
 
-    return tuple(
+    return set(
         tuple(
             _corner[_d]
             for _d in range(dim)
         )
-        for _corner in itertools.combinations_with_replacement(cube, dim)
+        for _corner in itertools.product(cube, dim)
     )
 
 
-def _get_cube_corner_edges(corners: Tuple[Tuple[int, ...], ...]) -> Tuple[Tuple[Tuple[int, ...], Tuple[int, ...]], ...]:
+def _get_corner_edges(corners: Set[Tuple[int, ...]], no_shared_dimensions: int) -> Set[Tuple[Tuple[int, ...], Tuple[int, ...]]]:
     # (2, 4), (5, 4), (5, 1), (2, 1) ->
     #   (2, 4), (5, 4)
     #   (5, 4), (5, 1)
@@ -62,10 +64,10 @@ def _get_cube_corner_edges(corners: Tuple[Tuple[int, ...], ...]) -> Tuple[Tuple[
 
     # https://de.wikipedia.org/wiki/Hyperw%C3%BCrfel#Grenzelemente
     # no__edges = dim * 2. ** (dim - 1)
-    return tuple(
+    return set(
         (_ca, _cb)
         for _ca, _cb in itertools.combinations(corners, 2)
-        if sum(int(_a != _b) for _a, _b in zip(_ca, _cb)) == 1
+        if sum(int(_a == _b) for _a, _b in zip(_ca, _cb)) >= no_shared_dimensions
     )
 
 
@@ -77,15 +79,14 @@ def _randomize(value: float, randomization: float, bound_upper: float = 1., boun
     return min(bound_upper, max(bound_lower, value + random.uniform(-randomization, randomization)))
 
 
-def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float, wrap: bool = False) -> numpy.ndarray:
+def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float, wrap: Optional[Iterable[int]] = None) -> numpy.ndarray:
     assert is_power_two(tile_size)
     _shape = _grid.shape
     assert len(set(_shape)) == 1
 
-    # todo: implement wrap
-    # determine which dimensions to wrap
-    # grid size must be divisible by tile_size
-    # without wrap nu such restriction
+    if wrap is not None:
+        for each_dimension in _shape:
+            assert each_dimension % tile_size == 0
 
     offsets = tuple(random.randint(0, tile_size - 1) for _ in range(_grid.ndim))
     shape = tuple(int(math.ceil((_s + _o) / tile_size)) * tile_size + 1 for _s, _o in zip(_shape, offsets))
@@ -101,8 +102,9 @@ def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float, wra
         if grid[_coordinates] < 0.:
             grid[_coordinates] = random.random()
 
-        if any(_c == 0 for _c in _coordinates):
-            # skip first lines
+    for _coordinates in numpy.ndindex(grid.shape):
+        # skip scaffolds and first lines
+        if any(_c == 0 or _c % tile_size != 0 for _c in _coordinates):
             continue
 
         # fill segment
@@ -116,19 +118,22 @@ def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float, wra
                 break
 
             corners = _get_cube_corners(cube)
-            edges = _get_cube_corner_edges(corners)
-            sum_interpolated = 0.
-            for _each_edge in edges:
-                _value_interpolated = (grid[_each_edge[0]] + grid[_each_edge[1]]) / 2.
-                sum_interpolated += _value_interpolated
-                _mid_point = _get_edge_midpoint(_each_edge)
-                if grid[_mid_point] < 0.:
-                    grid[_mid_point] = _randomize(_value_interpolated, randomization)
-
-            center = _scale_point_integer(_each_center, tile_size, offsets=_offsets)
-            _value_interpolated = sum_interpolated / len(edges)
-            if grid[center] < 0.:
-                grid[center] = _randomize(_value_interpolated, randomization)
+            sums = dict()
+            for _d in range(dim):
+                edges = _get_corner_edges(corners, 2)
+                corners.clear()
+                for _each_edge in edges:
+                    _midpoint = _get_edge_midpoint(_each_edge)
+                    corners.add(_midpoint)
+                    value_a = grid[_each_edge[0]]
+                    value_b = grid[_each_edge[1]]
+                    value_interpolated = (value_a + value_b) / 2.
+                    sums[_midpoint] = sums.get(_midpoint, 0.) + _randomize(value_interpolated, randomization) / (_d + 1)
+                for _point, _value in sums.items():
+                    value = grid[_point]
+                    if value < 0.:
+                        grid[_point] = _value
+                sums.clear()
 
     return grid[tuple(slice((_sn - _s) // 2, _sn - (_sn - _s) // 2) for _sn, _s in zip(shape, _shape))]
 
@@ -150,17 +155,27 @@ def draw(array: numpy.ndarray):
     grid_new = array.copy()
 
     width, height = grid_new.shape
-    _rectangle(grid_new, width // 4, height // 4, width // 2)
+    # _rectangle(grid_new, width // 4, height // 4, width // 2)
 
+    # pyplot.imshow(grid_new, cmap="gist_earth", vmin=0., vmax=1., interpolation="gaussian")
     pyplot.imshow(grid_new, cmap="gist_earth", vmin=0., vmax=1.)
-
-    pyplot.show()
+    pyplot.colorbar()
 
 
 def main():
-    array = numpy.full((512, 512), -1.)
-    noised = create_noise(array, 128, .16, wrap=False)
-    draw(noised)
+    size = 64
+    array = numpy.full((size, size, size), -1.)
+    noised = create_noise(array, size // 4, size / 256., wrap=None)
+
+    _i = 0
+    while True:
+        pyplot.clf()
+        print(f"layer {_i:d}")
+        draw(noised[_i])
+        pyplot.pause(.05)
+        _i = (_i + 1) % len(array)
+
+    pyplot.show()
 
 
 if __name__ == "__main__":

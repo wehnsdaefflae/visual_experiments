@@ -373,7 +373,8 @@ def main():
     grid_color = load_picture(pic_02, channel=0, x_offset=200, y_offset=200, size=size+1)
     grid_opaque = load_picture(pic_02, channel=3, x_offset=200, y_offset=200, size=size+1)
     grid_color = [[-1. if row_transparency[_x] == 0. else _v for _x, _v in enumerate(row_color)] for row_transparency, row_color in zip(grid_opaque, grid_color)]
-    map_tiles = Map(grid_size=size + 1, tile_size=128, distance_transition=128, grid_initial=grid_color)
+    # map_tiles = Map(grid_size=size + 1, tile_size=128, distance_transition=128, grid_initial=grid_color)
+    map_tiles = Map(grid_size=size + 1, tile_size=128, distance_transition=128)
 
     def press(event):
         if event.key == "up":
