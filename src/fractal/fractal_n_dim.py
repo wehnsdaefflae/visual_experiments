@@ -4,7 +4,7 @@ import itertools
 import math
 import random
 from functools import reduce
-from typing import List, Tuple, Any, Optional, Iterable, Union, Set
+from typing import List, Tuple, Any, Optional, Iterable, Union, Set, Sequence
 
 import numpy
 from PIL import Image
@@ -96,14 +96,25 @@ def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float, wra
     assert grid.shape == shape
     dim = grid.ndim
 
+    """
+    scaffold = [random.random() for _ in range(reduce(lambda _x, _y: _x * (_y + 1), shape_tiles, 1))]
+    print(len(scaffold))
+    scaffold = numpy.reshape(scaffold, tuple(_s + 1 for _s in shape_tiles))
+    numpy.place(grid[::tile_size], grid < 0., scaffold)
+    """
+
+    _i = 0
+    # set scaffold
     for _coordinates in numpy.ndindex(grid.shape):              # https://docs.scipy.org/doc/numpy/reference/generated/numpy.ndindex.html#numpy.ndindex
         if any(_c % tile_size != 0 for _c in _coordinates):     # https://stackoverflow.com/questions/25876640/subsampling-every-nth-entry-in-a-numpy-array
             continue
-
-        # set scaffold
+        _i += 1
         if grid[_coordinates] < 0.:
             grid[_coordinates] = random.random()
 
+    print(_i)
+    exit()
+    # fill scaffold
     no_tiles_done = 0
     for _coordinates in numpy.ndindex(grid.shape):
         # skip scaffolds and first lines
@@ -131,11 +142,13 @@ def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float, wra
                     value_a = grid[_each_edge[0]]
                     value_b = grid[_each_edge[1]]
                     value_interpolated = (value_a + value_b) / 2.
-                    sums[_midpoint] = sums.get(_midpoint, 0.) + _randomize(value_interpolated, randomization) / (_d + 1)
+                    # sums[_midpoint] = sums.get(_midpoint, 0.) + _randomize(value_interpolated, randomization) / (_d + 1)
+                    sums[_midpoint] = sums.get(_midpoint, 0.) + value_interpolated
                 for _point, _value in sums.items():
                     value = grid[_point]
                     if value < 0.:
-                        grid[_point] = _value
+                        # grid[_point] = _value
+                        grid[_point] = _randomize(_value / (_d + 1), randomization)
                 sums.clear()
 
         no_tiles_done += 1
@@ -158,19 +171,19 @@ def _rectangle(im: numpy.ndarray, x: int, y: int, size: int):
 
 
 def draw(array: numpy.ndarray):
-    # pyplot.imshow(array, cmap="gist_earth", vmin=0., vmax=1., interpolation="gaussian")
-    pyplot.imshow(array, cmap="gist_earth", vmin=0., vmax=1.)
+    pyplot.imshow(array, vmin=0., vmax=1., interpolation="gaussian")
+    # pyplot.imshow(array, cmap="gist_earth", vmin=0., vmax=1.)
     pyplot.colorbar()
 
 
 def main():
-    size = 64
+    size = 32
 
     array_a = numpy.full((size, size, size), -1.)
-    noised_a = create_noise(array_a, size // 4, size / 512., wrap=None)
+    noised_a = create_noise(array_a, size // 4, size / 1024., wrap=None)
 
     array_b = numpy.full((size, size, size), -1.)
-    noised_b = create_noise(array_b, size // 2, size / 256., wrap=None)
+    noised_b = create_noise(array_b, size // 2, size / 512., wrap=None)
 
     noised = (noised_a + noised_b) / 2.
 
