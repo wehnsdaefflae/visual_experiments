@@ -17,8 +17,7 @@ def is_power_two(n: int) -> bool:
     return n and (not (n & (n - 1)))
 
 
-def _scale_point_integer(point_normalized: Tuple[float, ...], factor: int, offsets: Optional[Tuple[int, ...]] = None) -> \
-Tuple[int, ...]:
+def _scale_point_integer(point_normalized: Tuple[float, ...], factor: int, offsets: Optional[Tuple[int, ...]] = None) -> Tuple[int, ...]:
     if offsets is None:
         return tuple(int(math.floor(_v * factor)) for _v in point_normalized)
     return tuple(int(math.floor(_v * factor)) + _o for _v, _o in zip(point_normalized, offsets))
