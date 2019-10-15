@@ -129,6 +129,29 @@ def _noise_cube(grid_cube: numpy.ndarray, randomization: float):
             sums.clear()
 
 
+def _set_midpoints(grid: numpy.ndarray, tile_size: int, randomization: float):
+    dim = grid.ndim
+    for _i in range(dim):
+        slices_source_a = tuple(slice(None, -tile_size, tile_size) if _j == _i else slice(None, None, tile_size) for _j in range(dim))
+        view_a = grid[slices_source_a]
+
+        slices_source_b = tuple(slice(tile_size, None, tile_size) if _j == _i else slice(None, None, tile_size) for _j in range(dim))
+        view_b = grid[slices_source_b]
+
+        slices_target = tuple(slice(tile_size // 2, None, tile_size) if _j == _i else slice(None, None, tile_size) for _j in range(dim))
+        grid[slices_target] = (view_a + view_b) / 2. + (2. * numpy.random.random(view_a.shape) - 1.) * randomization
+
+        for _j in range(dim):
+            if _i == _j:
+                continue
+            # midpoint connect all midpoints along all other axes
+            # separate slices_target into view_a and view_b
+            # set midpoint midpoints (recursively!)
+
+    if 2 < tile_size:
+        _set_midpoints(grid, tile_size // 2, randomization)
+
+
 def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float,
                  wrap: Optional[Iterable[int]] = None) -> numpy.ndarray:
     # check
@@ -166,6 +189,7 @@ def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float,
         view_b = grid[slices_source_b]
 
         slices_target = tuple(slice(tile_size // 2, None, tile_size) if _j == _i else slice(None, None, tile_size) for _j in range(dim))
+        #
         grid[slices_target] = (view_a + view_b) / 2. + (2. * numpy.random.random(view_a.shape) - 1.) * randomization
     """
 
@@ -182,6 +206,8 @@ def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float,
 
         no_cubes_done += 1
         print(f"finished {no_cubes_done:d} of {no_cubes_total:d} tiles...")
+    
+    #"""
 
     return grid[tuple(slice((_sn - _s) // 2, _sn - (_sn - _s) // 2) for _sn, _s in zip(shape, _shape))]
 
@@ -200,12 +226,13 @@ def _rectangle(im: numpy.ndarray, x: int, y: int, size: int):
 
 
 def draw(array: numpy.ndarray):
-    pyplot.imshow(array, vmin=0., vmax=1., interpolation="gaussian")
-    # pyplot.imshow(array, cmap="gist_earth", vmin=0., vmax=1.)
+    # pyplot.imshow(array, vmin=0., vmax=1., interpolation="gaussian")
+    pyplot.imshow(array, cmap="gist_earth", vmin=0., vmax=1.)
     pyplot.colorbar()
 
 
 def main():
+    # http://fdg2020.org/
     size = 16
 
     array_a = numpy.full((size, size, size), -1.)
