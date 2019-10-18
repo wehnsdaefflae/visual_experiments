@@ -113,7 +113,7 @@ def _noise_cube(grid_cube: numpy.ndarray, randomization: float):
         corners = _get_cube_corners(cube)
         sums = dict()
         for _d in range(dim):
-            edges = _get_corner_edges(corners, 2)
+            edges = _get_corner_edges(corners, dim - 1)
             corners.clear()
             for _each_edge in edges:
                 _midpoint = _get_edge_midpoint(_each_edge)
@@ -193,7 +193,8 @@ def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float,
         grid[slices_target] = (view_a + view_b) / 2. + (2. * numpy.random.random(view_a.shape) - 1.) * randomization
     """
 
-    # fill scaffold (old)
+    # fill scaffold
+    # TODO: not embedding!
     no_cubes_done = 0
     for _tile_coordinate in itertools.product(*tuple(range(_s) for _s in shape_tiles)):
         _coordinates = tuple(_t * tile_size for _t in _tile_coordinate)
@@ -209,7 +210,10 @@ def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float,
     
     #"""
 
-    return grid[tuple(slice((_sn - _s) // 2, _sn - (_sn - _s) // 2) for _sn, _s in zip(shape, _shape))]
+    # TODO: NOT the reverse of initial padding!
+    # return grid[tuple(slice((_sn - _s) // 2, _sn - (_sn - _s) // 2 - 1) for _sn, _s in zip(shape, _shape))]
+    slices = tuple(slice(s - _s, None, None) for s, _s in zip(shape, _shape))
+    return grid[slices]
 
 
 def _rectangle(im: numpy.ndarray, x: int, y: int, size: int):
@@ -231,27 +235,71 @@ def draw(array: numpy.ndarray):
     pyplot.colorbar()
 
 
-def main():
+def noise_cubed():
     # http://fdg2020.org/
     size = 16
 
     array_a = numpy.full((size, size, size), -1.)
-    noised_a = create_noise(array_a, size // 4, size / 1024., wrap=None)
-
     array_b = numpy.full((size, size, size), -1.)
-    noised_b = create_noise(array_b, size // 2, size / 512., wrap=None)
 
-    noised = ((noised_a + noised_b) / 2.) ** 2.
-
-    _i = 0
     while True:
-        pyplot.clf()
-        print(f"layer {_i:d}")
-        draw(noised[_i])
-        pyplot.pause(.005)
-        _i = (_i + 1) % size
+        _i = 0
+
+        noised_a = create_noise(array_a, size // 4, size / 1024., wrap=None)
+        noised_b = create_noise(array_b, size // 2, size / 512., wrap=None)
+
+        noised = (noised_a + noised_b) / 2.
+        for _each_layer in noised:
+            pyplot.clf()
+            print(f"layer {_i:d}")
+            draw(_each_layer)
+            pyplot.pause(.005)
+            _i = (_i + 1) % size
+
+        array_a = numpy.full((size, size, size), -1.)
+        array_b = numpy.full((size, size, size), -1.)
+
+        array_a[0] = noised[-1]
+        array_b[0] = noised[-1]
 
     pyplot.show()
+
+
+def cross(array: numpy.ndarray, width: float = .01):
+    dim = array.ndim
+    shape = array.shape
+    size, = {_s for _s in shape}
+
+    min_val = int(size * (1 - width)) // 2
+    max_val = int(size * (width + 1)) // 2
+
+    for _d in range(dim):
+        slices = tuple(slice(min_val, max_val, None) if _s == _d else slice(None, None, None) for _s in range(dim))
+        mask = array[slices]
+        numpy.place(mask, mask < 0., 1.)
+
+
+def noise_squared():
+    # http://fdg2020.org/
+    size = 128
+
+    array_a = numpy.full((size, size), -1.)
+    array_b = numpy.full((size, size), -1.)
+
+    cross(array_a)
+    cross(array_b)
+
+    noised_a = create_noise(array_a, size // 4, size / 1024., wrap=None)
+    noised_b = create_noise(array_b, size // 2, size / 512., wrap=None)
+
+    noised = (noised_a + noised_b) / 2.
+    draw(noised)
+
+    pyplot.show()
+
+
+def main():
+    noise_squared()
 
 
 if __name__ == "__main__":
