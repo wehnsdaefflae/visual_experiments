@@ -285,25 +285,22 @@ def cross(array: numpy.ndarray, width: float = .01):
 
 def noise_squared():
     # http://fdg2020.org/
-    size = 128
+    size = 64
 
     array_a = numpy.full((size, size), -1.)
-    array_b = numpy.full((size, size), -1.)
 
     cross(array_a)
-    cross(array_b)
 
     noised_a = create_noise(array_a, size // 4, size / 1024., wrap=None)
-    noised_b = create_noise(array_b, size // 2, size / 512., wrap=None)
 
-    noised = (noised_a + noised_b) / 2.
-    draw(noised)
+    draw(noised_a)
 
     pyplot.show()
 
 
 def main():
-    noise_cubed()
+    noise_squared()
+    # noise_cubed()
 
 
 if __name__ == "__main__":
