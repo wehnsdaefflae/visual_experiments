@@ -210,7 +210,6 @@ def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float,
     
     #"""
 
-    # TODO: NOT the reverse of initial padding!
     # return grid[tuple(slice((_sn - _s) // 2, _sn - (_sn - _s) // 2 - 1) for _sn, _s in zip(shape, _shape))]
     slices = tuple(slice(s - _s, None, None) for s, _s in zip(shape, _shape))
     return grid[slices]
@@ -240,27 +239,31 @@ def noise_cubed():
     size = 16
 
     array_a = numpy.full((size, size, size), -1.)
-    array_b = numpy.full((size, size, size), -1.)
+    # array_b = numpy.full((size, size, size), -1.)
 
     while True:
         _i = 0
 
-        noised_a = create_noise(array_a, size // 4, size / 1024., wrap=None)
-        noised_b = create_noise(array_b, size // 2, size / 512., wrap=None)
+        cross(array_a[size // 2])
+        # cross(array_b[size // 2])
 
-        noised = (noised_a + noised_b) / 2.
+        noised_a = create_noise(array_a, size // 4, size / 1024., wrap=None)
+        # noised_b = create_noise(array_b, size // 2, size / 512., wrap=None)
+
+        #noised = (noised_a + noised_b) / 2.
+        noised = noised_a
         for _each_layer in noised:
             pyplot.clf()
             print(f"layer {_i:d}")
             draw(_each_layer)
-            pyplot.pause(.005)
+            pyplot.pause(.25)
             _i = (_i + 1) % size
 
         array_a = numpy.full((size, size, size), -1.)
-        array_b = numpy.full((size, size, size), -1.)
+        # array_b = numpy.full((size, size, size), -1.)
 
         array_a[0] = noised[-1]
-        array_b[0] = noised[-1]
+        # array_b[0] = noised[-1]
 
     pyplot.show()
 
@@ -299,7 +302,7 @@ def noise_squared():
 
 
 def main():
-    noise_squared()
+    noise_cubed()
 
 
 if __name__ == "__main__":
