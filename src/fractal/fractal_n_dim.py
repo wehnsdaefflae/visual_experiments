@@ -168,7 +168,8 @@ def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float,
     shape_tiles = tuple(int(math.ceil((_s + _o) / tile_size)) for _s, _o in zip(_shape, offsets))
     shape = tuple(_t * tile_size + 1 for _t in shape_tiles)
     no_cubes_total = reduce(lambda _x, _y: _x * _y, shape_tiles, 1)
-    grid = numpy.pad(array=_grid, pad_width=tuple((_sn - _s, 0) for _sn, _s in zip(shape, _shape)), mode="constant", constant_values=-1.)
+    padding = tuple((_sn - _s, 0) for _sn, _s in zip(shape, _shape))
+    grid = numpy.pad(array=_grid, pad_width=padding, mode="constant", constant_values=-1.)
     assert grid.shape == shape
     dim = grid.ndim
 
@@ -238,32 +239,32 @@ def noise_cubed():
     # http://fdg2020.org/
     size = 16
 
-    array_a = numpy.full((size, size, size), -1.)
-    # array_b = numpy.full((size, size, size), -1.)
+    noised_a = numpy.full((size, size, size), -1.)
+    #noised_b = numpy.full((size, size, size), -1.)
 
     while True:
         _i = 0
 
-        cross(array_a[size // 2])
-        # cross(array_b[size // 2])
+        # todo: transition only works with last
+        cross(noised_a[-1])
+        #cross(array_b[-1])
 
-        noised_a = create_noise(array_a, size // 4, size / 1024., wrap=None)
-        # noised_b = create_noise(array_b, size // 2, size / 512., wrap=None)
+        noised_a = create_noise(noised_a, size // 4, size / 1024., wrap=None)
+        #noised_b = create_noise(noised_b, size // 2, size / 512., wrap=None)
 
         #noised = (noised_a + noised_b) / 2.
-        noised = noised_a
-        for _each_layer in noised:
+        for _each_layer in noised_a:
             pyplot.clf()
             print(f"layer {_i:d}")
             draw(_each_layer)
             pyplot.pause(.25)
             _i = (_i + 1) % size
 
-        array_a = numpy.full((size, size, size), -1.)
-        # array_b = numpy.full((size, size, size), -1.)
+        noised_a[0] = noised_a[-1]
+        #noised_b[0] = noised_b[-1].copy()
 
-        array_a[0] = noised[-1]
-        # array_b[0] = noised[-1]
+        noised_a[1:] = numpy.full((size - 1, size, size), -1.)
+        #noised_b[1:] = numpy.full((size - 1, size, size), -1.)
 
     pyplot.show()
 
