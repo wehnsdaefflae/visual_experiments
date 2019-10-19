@@ -107,9 +107,19 @@ def _get_cube(grid: numpy.ndarray, coordinates: Sequence[int], size: int) -> num
 
 
 def _get_cube_w(grid: numpy.ndarray, coordinates: Sequence[int], size: int) -> numpy.ndarray:
-    indices_window = numpy.indices(tuple(size + 1 for _ in grid.shape))
-    offset = tuple(tuple(_d + _c for _d in indices_window) for _c in coordinates)
-    return grid[offset]
+    indices = tuple(
+        itertools.product(
+            *tuple(
+                tuple(
+                    _v % _s
+                    for _v in range(_c, _c + size)
+                )
+                for _c, _s in zip(coordinates, grid.shape)
+            )
+        )
+    )
+
+    return grid[indices[:, 0], indices[:, 1], indices[:, 2]]
     #rolled = numpy.roll(a=grid, shift=tuple(-_c for _c in coordinates), axis=tuple(_i for _i in range(grid.ndim)))
     #slices_cube = tuple(slice(0, size + 1, None) for _ in grid.shape)
     #return rolled[slices_cube]
@@ -218,8 +228,8 @@ def create_noise(grid: numpy.ndarray, tile_size: int, randomization: float, wrap
     no_cubes_done = 0
     for _tile_coordinate in itertools.product(*tuple(range(_s) for _s in shape_tiles)):
 
-        # grid_cube = _get_cube_w(grid, _tile_coordinate, tile_size)
-        grid_cube = _get_cube(grid, _tile_coordinate, tile_size)
+        grid_cube = _get_cube_w(grid, _tile_coordinate, tile_size)
+        # grid_cube = _get_cube(grid, _tile_coordinate, tile_size)
 
         _noise_cube(grid_cube, randomization)
 
@@ -227,7 +237,7 @@ def create_noise(grid: numpy.ndarray, tile_size: int, randomization: float, wrap
 
         no_cubes_done += 1
         print(f"finished {no_cubes_done:d} of {no_cubes_total:d} tiles...")
-    
+
     #"""
 
     slices = tuple(slice(None, -1, None) for _s in shape)
