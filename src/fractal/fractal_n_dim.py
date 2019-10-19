@@ -98,6 +98,23 @@ def _array_segments(array: numpy.ndarray, shape_segments: Sequence[int], overlap
     yield from (as_strided(array[_each_slice], shape=shape_segments, strides=strides_segment) for _each_slice in slices)
 
 
+def _get_cube(grid: numpy.ndarray, coordinates: Sequence[int], size: int) -> numpy.ndarray:
+    corner_a = tuple(_t * size for _t in coordinates)
+    corner_b = tuple(_c + size for _c in corner_a)
+    slices_cube = tuple(slice(_f, _t + 1, None) for _f, _t in zip(corner_a, corner_b))
+    grid_cube = grid[slices_cube]
+    return grid_cube
+
+
+def _get_cube_w(grid: numpy.ndarray, coordinates: Sequence[int], size: int) -> numpy.ndarray:
+    indices_window = numpy.indices(tuple(size + 1 for _ in grid.shape))
+    offset = tuple(tuple(_d + _c for _d in indices_window) for _c in coordinates)
+    return grid[offset]
+    #rolled = numpy.roll(a=grid, shift=tuple(-_c for _c in coordinates), axis=tuple(_i for _i in range(grid.ndim)))
+    #slices_cube = tuple(slice(0, size + 1, None) for _ in grid.shape)
+    #return rolled[slices_cube]
+
+
 def _noise_cube(grid_cube: numpy.ndarray, randomization: float):
     dim = grid_cube.ndim
     tile_size, = set(_x - 1 for _x in grid_cube.shape)
@@ -152,29 +169,31 @@ def _set_midpoints(grid: numpy.ndarray, tile_size: int, randomization: float):
         _set_midpoints(grid, tile_size // 2, randomization)
 
 
-def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float,
-                 wrap: Optional[Iterable[int]] = None) -> numpy.ndarray:
+def create_noise(grid: numpy.ndarray, tile_size: int, randomization: float, wrap: Optional[Sequence[int]] = None) -> numpy.ndarray:
     # check
     assert is_power_two(tile_size)
-    _shape = _grid.shape
-    assert len(set(_shape)) == 1
+    shape = grid.shape
+    size, = set(shape)
+    dim = grid.ndim
+    assert is_power_two(size)
 
-    if wrap is not None:
-        for each_dimension in _shape:
-            assert each_dimension % tile_size == 0
+    if wrap is None:
+        wrap = tuple()
+    else:
+        assert all(_d < dim for _d in wrap)
+
+    for each_dimension in shape:
+        assert each_dimension % tile_size == 0
 
     # initialize
-    offsets = tuple(random.randint(0, tile_size - 1) for _ in range(_grid.ndim))
-    shape_tiles = tuple(int(math.ceil((_s + _o) / tile_size)) for _s, _o in zip(_shape, offsets))
-    shape = tuple(_t * tile_size + 1 for _t in shape_tiles)
+    shape_tiles = tuple(each_dimension // tile_size for each_dimension in shape)
     no_cubes_total = reduce(lambda _x, _y: _x * _y, shape_tiles, 1)
-    padding = tuple((_sn - _s, 0) for _sn, _s in zip(shape, _shape))
-    grid = numpy.pad(array=_grid, pad_width=padding, mode="constant", constant_values=-1.)
-    assert grid.shape == shape
-    dim = grid.ndim
+    # padding = tuple((0, 1) for _ in shape)
+    padding = tuple((0, int(_i not in wrap)) for _i in range(dim))
+    grid = numpy.pad(array=grid, pad_width=padding, mode="constant", constant_values=-1.)
 
     # make scaffold
-    scaffold = numpy.random.random(tuple(_s + 1 for _s in shape_tiles))
+    scaffold = numpy.random.random(tuple(_s + int(_i not in wrap) for _i, _s in enumerate(shape_tiles)))
     mask = grid[tuple(slice(None, None, tile_size) for _ in range(dim))]
     numpy.place(mask, mask < 0., scaffold)
 
@@ -198,21 +217,20 @@ def create_noise(_grid: numpy.ndarray, tile_size: int, randomization: float,
     # TODO: not embedding!
     no_cubes_done = 0
     for _tile_coordinate in itertools.product(*tuple(range(_s) for _s in shape_tiles)):
-        _coordinates = tuple(_t * tile_size for _t in _tile_coordinate)
-        corner_a = _coordinates
-        corner_b = tuple(_c + tile_size for _c in _coordinates)
-        slices = tuple(slice(_f, _t + 1) for _f, _t in zip(corner_a, corner_b))
-        grid_cube = grid[slices]
+
+        # grid_cube = _get_cube_w(grid, _tile_coordinate, tile_size)
+        grid_cube = _get_cube(grid, _tile_coordinate, tile_size)
 
         _noise_cube(grid_cube, randomization)
+
+        # grid[[slice(_c, _c + tile_size + 1, None) for _c in _tile_coordinate]] = grid_cube
 
         no_cubes_done += 1
         print(f"finished {no_cubes_done:d} of {no_cubes_total:d} tiles...")
     
     #"""
 
-    # return grid[tuple(slice((_sn - _s) // 2, _sn - (_sn - _s) // 2 - 1) for _sn, _s in zip(shape, _shape))]
-    slices = tuple(slice(s - _s, None, None) for s, _s in zip(shape, _shape))
+    slices = tuple(slice(None, -1, None) for _s in shape)
     return grid[slices]
 
 
@@ -239,32 +257,26 @@ def noise_cubed():
     # http://fdg2020.org/
     size = 16
 
-    noised_a = numpy.full((size, size, size), -1.)
-    #noised_b = numpy.full((size, size, size), -1.)
+    noised = numpy.full((size, size, size), -1.)
 
     while True:
         _i = 0
 
-        # todo: transition only works with last
-        cross(noised_a[-1])
-        #cross(array_b[-1])
+        # xing(noised)
+        # cross(noised[-1])
 
-        noised_a = create_noise(noised_a, size // 4, size / 1024., wrap=None)
-        #noised_b = create_noise(noised_b, size // 2, size / 512., wrap=None)
+        noised = create_noise(noised, size // 4, size / 1024., wrap=None)
 
-        #noised = (noised_a + noised_b) / 2.
-        for _each_layer in noised_a:
+        for _each_layer in noised[1:]:
             pyplot.clf()
             print(f"layer {_i:d}")
             draw(_each_layer)
             pyplot.pause(.25)
             _i = (_i + 1) % size
 
-        noised_a[0] = noised_a[-1]
-        #noised_b[0] = noised_b[-1].copy()
+        noised[0] = noised[-1]
 
-        noised_a[1:] = numpy.full((size - 1, size, size), -1.)
-        #noised_b[1:] = numpy.full((size - 1, size, size), -1.)
+        noised[1:] = numpy.full((size - 1, size, size), -1.)
 
     pyplot.show()
 
@@ -283,13 +295,23 @@ def cross(array: numpy.ndarray, width: float = .01):
         numpy.place(mask, mask < 0., 1.)
 
 
+def xing(array: numpy.ndarray):
+    dim = array.ndim
+    shape = array.shape
+    size, = {_s for _s in shape}
+
+    f = numpy.full((size, ), 1.)
+    i = numpy.diag_indices(size, ndim=dim)
+    array[i] = f
+
+
 def noise_squared():
     # http://fdg2020.org/
     size = 64
 
     array_a = numpy.full((size, size), -1.)
 
-    cross(array_a)
+    xing(array_a)
 
     noised_a = create_noise(array_a, size // 4, size / 1024., wrap=None)
 
@@ -299,8 +321,8 @@ def noise_squared():
 
 
 def main():
-    noise_squared()
-    # noise_cubed()
+    # noise_squared()
+    noise_cubed()
 
 
 if __name__ == "__main__":
