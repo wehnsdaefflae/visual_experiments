@@ -228,7 +228,6 @@ def create_noise(grid: numpy.ndarray, tile_size: int, randomization: float, wrap
     # initialize
     shape_tiles = tuple(each_dimension // tile_size for each_dimension in shape)
     no_cubes_total = reduce(lambda _x, _y: _x * _y, shape_tiles, 1)
-    # padding = tuple((0, 1) for _ in shape)
     padding = tuple((0, int(_i not in wrap)) for _i in range(dim))
     grid = numpy.pad(array=grid, pad_width=padding, mode="constant", constant_values=-1.)
 
@@ -257,19 +256,32 @@ def create_noise(grid: numpy.ndarray, tile_size: int, randomization: float, wrap
     # TODO: not embedding!
     no_cubes_done = 0
     for _tile_coordinate in itertools.product(*tuple(range(_s) for _s in shape_tiles)):
+        indices = tuple(
+            zip(
+                *itertools.product(
+                    *tuple(
+                        tuple(
+                            (_x + _c * tile_size) % size
+                            for _x in range(tile_size + 1)
+                        )
+                        for _c in _tile_coordinate
+                    )
+                )
+            )
+        )
 
-        # grid_cube = _get_cube_w(grid, _tile_coordinate, tile_size)
-        grid_cube = _get_cube(grid, _tile_coordinate, tile_size)
+        grid_cube = grid[indices].reshape(tuple(tile_size + 1 for _ in grid.shape))
 
         _noise_cube(grid_cube, randomization)
 
-        # _set_grid_w(grid_cube, grid, _tile_coordinate, tile_size)
+        grid[indices] = grid_cube.flatten()
+
         no_cubes_done += 1
         print(f"finished {no_cubes_done:d} of {no_cubes_total:d} tiles...")
 
     #"""
 
-    slices = tuple(slice(None, -1, None) for _s in shape)
+    slices = tuple(slice(None, -int(_i not in wrap), None) for _i in range(dim))
     return grid[slices]
 
 
@@ -292,7 +304,7 @@ def draw(array: numpy.ndarray):
     pyplot.colorbar()
 
 
-def noise_cubed():
+def noise_cubed_infinite():
     # http://fdg2020.org/
     size = 16
 
@@ -316,6 +328,26 @@ def noise_cubed():
         noised[0] = noised[-1]
 
         noised[1:] = numpy.full((size - 1, size, size), -1.)
+
+    pyplot.show()
+
+
+def noise_cubed():
+    # http://fdg2020.org/
+    size = 256
+
+    noised = numpy.full((size, size, size), -1.)
+    noised = create_noise(noised, size // 4, size / 1024., wrap=None)
+
+    while True:
+        _i = 0
+
+        for _each_layer in noised:
+            pyplot.clf()
+            print(f"layer {_i:d}")
+            draw(_each_layer)
+            pyplot.pause(.05)
+            _i = (_i + 1) % size
 
     pyplot.show()
 
@@ -352,7 +384,7 @@ def noise_squared():
 
     xing(array_a)
 
-    noised_a = create_noise(array_a, size // 4, size / 1024., wrap=None)
+    noised_a = create_noise(array_a, size // 4, size / 1024., wrap=[0, 1, 2])
 
     draw(noised_a)
 
@@ -361,6 +393,7 @@ def noise_squared():
 
 def main():
     # noise_squared()
+    # noise_cubed_infinite()
     noise_cubed()
 
 
