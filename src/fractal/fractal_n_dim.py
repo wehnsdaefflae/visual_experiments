@@ -334,10 +334,10 @@ def noise_cubed_infinite():
 
 def noise_cubed():
     # http://fdg2020.org/
-    size = 256
+    size = 32
 
     noised = numpy.full((size, size, size), -1.)
-    noised = create_noise(noised, size // 4, size / 1024., wrap=None)
+    noised = create_noise(noised, size // 4, size / 4096., wrap=[0, 1, 2])
 
     while True:
         _i = 0
@@ -394,6 +394,8 @@ def noise_squared():
 def main():
     # noise_squared()
     # noise_cubed_infinite()
+
+    # wraps when no wrap dimensions are given, does not terminate when wrap dimensions are given
     noise_cubed()
 
 
