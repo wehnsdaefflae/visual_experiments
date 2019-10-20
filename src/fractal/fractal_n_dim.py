@@ -281,8 +281,7 @@ def create_noise(grid: numpy.ndarray, tile_size: int, randomization: float, wrap
 
     #"""
 
-    slices = tuple(slice(None, -int(_i not in wrap), None) for _i in range(dim))
-    return grid[slices]
+    return grid[tuple(slice(None, _s, None) for _s in shape)]
 
 
 def _rectangle(im: numpy.ndarray, x: int, y: int, size: int):
@@ -337,7 +336,9 @@ def noise_cubed():
     size = 32
 
     noised = numpy.full((size, size, size), -1.)
-    noised = create_noise(noised, size // 4, size / 4096., wrap=[0, 1, 2])
+    # noised = create_noise(noised, size // 4, size / 4096., wrap=[0, 1, 2])
+    # wraps when shouldn't
+    noised = create_noise(noised, size // 4, size / 4096.)
 
     while True:
         _i = 0
@@ -382,9 +383,9 @@ def noise_squared():
 
     array_a = numpy.full((size, size), -1.)
 
-    xing(array_a)
+    # xing(array_a)
 
-    noised_a = create_noise(array_a, size // 4, size / 1024., wrap=[0, 1, 2])
+    noised_a = create_noise(array_a, size // 4, size / 1024., wrap=[0, 1])
 
     draw(noised_a)
 
