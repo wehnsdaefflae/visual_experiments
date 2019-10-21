@@ -210,9 +210,9 @@ def _set_midpoints(grid: numpy.ndarray, tile_size: int, randomization: float):
         _set_midpoints(grid, tile_size // 2, randomization)
 
 
-def create_noise(grid: numpy.ndarray, tile_size: int, randomization: float, wrap: Optional[Sequence[int]] = None) -> numpy.ndarray:
+def create_noise(grid: numpy.ndarray, size_cubicles: int, randomization: float, wrap: Optional[Sequence[int]] = None) -> numpy.ndarray:
     # check
-    assert is_power_two(tile_size)
+    assert is_power_two(size_cubicles)
     shape = grid.shape
     size, = set(shape)
     dim = grid.ndim
@@ -224,17 +224,17 @@ def create_noise(grid: numpy.ndarray, tile_size: int, randomization: float, wrap
         assert all(_d < dim for _d in wrap)
 
     for each_dimension in shape:
-        assert each_dimension % tile_size == 0
+        assert each_dimension % size_cubicles == 0
 
     # initialize
-    shape_tiles = tuple(each_dimension // tile_size for each_dimension in shape)
-    no_cubes_total = reduce(lambda _x, _y: _x * _y, shape_tiles, 1)
+    shape_cubicles = tuple(each_dimension // size_cubicles for each_dimension in shape)
+    no_cubicles_total = reduce(lambda _x, _y: _x * _y, shape_cubicles, 1)
     padding = tuple((0, int(_i not in wrap)) for _i in range(dim))
     grid = numpy.pad(array=grid, pad_width=padding, mode="constant", constant_values=-1.)
 
     # make scaffold
-    scaffold = numpy.random.random(tuple(_s + int(_i not in wrap) for _i, _s in enumerate(shape_tiles)))
-    mask = grid[tuple(slice(None, None, tile_size) for _ in range(dim))]
+    scaffold = numpy.random.random(tuple(_s + int(_i not in wrap) for _i, _s in enumerate(shape_cubicles)))
+    mask = grid[tuple(slice(None, None, size_cubicles) for _ in range(dim))]
     numpy.place(mask, mask < 0., scaffold)
 
     """
@@ -254,14 +254,14 @@ def create_noise(grid: numpy.ndarray, tile_size: int, randomization: float, wrap
     """
 
     no_cubes_done = 0
-    for _tile_coordinate in itertools.product(*tuple(range(_s) for _s in shape_tiles)):
+    for _tile_coordinate in itertools.product(*tuple(range(_s) for _s in shape_cubicles)):
         indices = tuple(
             zip(
                 *itertools.product(
                     *tuple(
                         tuple(
-                            (_x + _c * tile_size) % (size + int(_d not in wrap))
-                            for _x in range(tile_size + 1)
+                            (_x + _c * size_cubicles) % (size + int(_d not in wrap))
+                            for _x in range(size_cubicles + 1)
                         )
                         for _d, _c in enumerate(_tile_coordinate)
                     )
@@ -269,14 +269,14 @@ def create_noise(grid: numpy.ndarray, tile_size: int, randomization: float, wrap
             )
         )
 
-        grid_cube = grid[indices].reshape(tuple(tile_size + 1 for _ in grid.shape))
+        grid_cube = grid[indices].reshape(tuple(size_cubicles + 1 for _ in grid.shape))
 
         _noise_cube(grid_cube, randomization)
 
         grid[indices] = grid_cube.flatten()
 
         no_cubes_done += 1
-        print(f"finished {no_cubes_done:d} of {no_cubes_total:d} tiles...")
+        print(f"finished {no_cubes_done:d} of {no_cubicles_total:d} tiles...")
 
     #"""
 
@@ -298,10 +298,10 @@ def _rectangle(im: numpy.ndarray, x: int, y: int, size: int):
 
 def draw(array: numpy.ndarray, is_rgb: bool = False):
     if is_rgb:
-        pyplot.imshow(array)
+        pyplot.imshow(numpy.transpose(array, (1, 0, 2)), interpolation="gaussian")
     else:
-        # pyplot.imshow(array, vmin=0., vmax=1., interpolation="gaussian")
-        pyplot.imshow(array, cmap="gist_earth", vmin=0., vmax=1.)
+        # pyplot.imshow(numpy.transpose(array, (1, 0)), vmin=0., vmax=1., interpolation="gaussian")
+        pyplot.imshow(numpy.transpose(array, (1, 0)), cmap="gist_earth", vmin=0., vmax=1.)
         pyplot.colorbar()
 
 
@@ -335,25 +335,25 @@ def noise_cubed_infinite():
 
 def noise_cubed():
     # http://fdg2020.org/
-    size = 128
+    size = 64
 
     noised_red = numpy.full((size, size, size), -1.)
     noised_green = numpy.full((size, size, size), -1.)
     noised_blue = numpy.full((size, size, size), -1.)
 
     embed = imread("D:/Eigene Dateien/Bilder/toilet.jpg") / 255.
-    embed[:, :32, :] = -1.
-    embed[:, 96:, :] = -1.
-    embed[:32, :, :] = -1.
-    embed[96:, :, :] = -1.
+    embed = embed[32:96, 32:96, :]
 
     noised_red[:, :, size // 2] = embed[:, :, 0]
     noised_green[:, :, size // 2] = embed[:, :, 1]
     noised_blue[:, :, size // 2] = embed[:, :, 2]
 
-    noised_red = create_noise(noised_red, size // 4, size / 1024., wrap=[0, 1, 2])
-    noised_green = create_noise(noised_green, size // 4, size / 1024., wrap=[0, 1, 2])
-    noised_blue = create_noise(noised_blue, size // 4, size / 1024., wrap=[0, 1, 2])
+    randomization = size / 1024
+    size_cubicle = size // 4
+
+    noised_red = create_noise(noised_red, size_cubicle, randomization, wrap=[0, 1, 2])
+    noised_green = create_noise(noised_green, size_cubicle, randomization, wrap=[0, 1, 2])
+    noised_blue = create_noise(noised_blue, size_cubicle, randomization, wrap=[0, 1, 2])
 
     array = numpy.array([noised_red, noised_green, noised_blue]).T
 
