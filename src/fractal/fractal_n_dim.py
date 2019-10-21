@@ -261,10 +261,10 @@ def create_noise(grid: numpy.ndarray, tile_size: int, randomization: float, wrap
                 *itertools.product(
                     *tuple(
                         tuple(
-                            (_x + _c * tile_size) % size
+                            (_x + _c * tile_size) % (size + int(_d not in wrap))
                             for _x in range(tile_size + 1)
                         )
-                        for _c in _tile_coordinate
+                        for _d, _c in enumerate(_tile_coordinate)
                     )
                 )
             )
@@ -338,7 +338,7 @@ def noise_cubed():
     noised = numpy.full((size, size, size), -1.)
     # noised = create_noise(noised, size // 4, size / 4096., wrap=[0, 1, 2])
     # wraps when shouldn't
-    noised = create_noise(noised, size // 4, size / 4096.)
+    noised = create_noise(noised, size // 4, size / 4096., wrap=[0, 1])
 
     while True:
         _i = 0
