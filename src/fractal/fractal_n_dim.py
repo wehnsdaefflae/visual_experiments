@@ -9,6 +9,7 @@ from typing import List, Tuple, Any, Optional, Iterable, Union, Set, Sequence, G
 import numpy
 from PIL import Image
 from matplotlib import pyplot
+from matplotlib.pyplot import imread
 from numpy.lib.stride_tricks import as_strided
 
 from src.tools import uniform_areal_segmentation, Timer
@@ -252,8 +253,6 @@ def create_noise(grid: numpy.ndarray, tile_size: int, randomization: float, wrap
         grid[slices_target] = (view_a + view_b) / 2. + (2. * numpy.random.random(view_a.shape) - 1.) * randomization
     """
 
-    # fill scaffold
-    # TODO: not embedding!
     no_cubes_done = 0
     for _tile_coordinate in itertools.product(*tuple(range(_s) for _s in shape_tiles)):
         indices = tuple(
@@ -297,10 +296,13 @@ def _rectangle(im: numpy.ndarray, x: int, y: int, size: int):
                 im[x + size, _v + y] = 1.
 
 
-def draw(array: numpy.ndarray):
-    # pyplot.imshow(array, vmin=0., vmax=1., interpolation="gaussian")
-    pyplot.imshow(array, cmap="gist_earth", vmin=0., vmax=1.)
-    pyplot.colorbar()
+def draw(array: numpy.ndarray, is_rgb: bool = False):
+    if is_rgb:
+        pyplot.imshow(array)
+    else:
+        # pyplot.imshow(array, vmin=0., vmax=1., interpolation="gaussian")
+        pyplot.imshow(array, cmap="gist_earth", vmin=0., vmax=1.)
+        pyplot.colorbar()
 
 
 def noise_cubed_infinite():
@@ -333,20 +335,31 @@ def noise_cubed_infinite():
 
 def noise_cubed():
     # http://fdg2020.org/
-    size = 32
+    size = 128
 
-    noised = numpy.full((size, size, size), -1.)
-    # noised = create_noise(noised, size // 4, size / 4096., wrap=[0, 1, 2])
-    # wraps when shouldn't
-    noised = create_noise(noised, size // 4, size / 4096., wrap=[0, 1])
+    noised_red = numpy.full((size, size, size), -1.)
+    noised_green = numpy.full((size, size, size), -1.)
+    noised_blue = numpy.full((size, size, size), -1.)
+
+    embed = imread("D:/Eigene Dateien/Bilder/toilet.jpg") / 255.
+    noised_red[:, :, size // 2] = embed[:, :, 0]
+    noised_green[:, :, size // 2] = embed[:, :, 1]
+    noised_blue[:, :, size // 2] = embed[:, :, 2]
+
+    noised_red = create_noise(noised_red, size // 4, size / 1024., wrap=[0, 1, 2])
+    noised_green = create_noise(noised_green, size // 4, size / 1024., wrap=[0, 1, 2])
+    noised_blue = create_noise(noised_blue, size // 4, size / 1024., wrap=[0, 1, 2])
+
+    array = numpy.array([noised_red, noised_green, noised_blue]).T
 
     while True:
         _i = 0
 
-        for _each_layer in noised:
+        for _each_layer in array:
             pyplot.clf()
             print(f"layer {_i:d}")
-            draw(_each_layer)
+            # draw(_each_layer)
+            draw(_each_layer, is_rgb=True)
             pyplot.pause(.05)
             _i = (_i + 1) % size
 
