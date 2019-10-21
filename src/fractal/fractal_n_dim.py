@@ -342,6 +342,11 @@ def noise_cubed():
     noised_blue = numpy.full((size, size, size), -1.)
 
     embed = imread("D:/Eigene Dateien/Bilder/toilet.jpg") / 255.
+    embed[:, :32, :] = -1.
+    embed[:, 96:, :] = -1.
+    embed[:32, :, :] = -1.
+    embed[96:, :, :] = -1.
+
     noised_red[:, :, size // 2] = embed[:, :, 0]
     noised_green[:, :, size // 2] = embed[:, :, 1]
     noised_blue[:, :, size // 2] = embed[:, :, 2]
