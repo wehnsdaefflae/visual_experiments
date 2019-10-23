@@ -241,16 +241,33 @@ def create_noise(grid: numpy.ndarray, size_cubicles: int, randomization: float, 
     # loop until tile_size too small
     # loop until cubes filled (over dimensions)
     # fill scaffold
+    midpoints = []
+    cubicles_current = size_cubicles
     for _i in range(dim):
-        slices_source_a = tuple(slice(None, -tile_size, tile_size) if _j == _i else slice(None, None, tile_size) for _j in range(dim))
+        slices_source_a = tuple(slice(None, -cubicles_current, cubicles_current) if _j == _i else slice(None, None, cubicles_current) for _j in range(dim))
         view_a = grid[slices_source_a]
 
-        slices_source_b = tuple(slice(tile_size, None, tile_size) if _j == _i else slice(None, None, tile_size) for _j in range(dim))
+        slices_source_b = tuple(slice(cubicles_current, None, cubicles_current) if _j == _i else slice(None, None, cubicles_current) for _j in range(dim))
         view_b = grid[slices_source_b]
 
-        slices_target = tuple(slice(tile_size // 2, None, tile_size) if _j == _i else slice(None, None, tile_size) for _j in range(dim))
-        #
-        grid[slices_target] = (view_a + view_b) / 2. + (2. * numpy.random.random(view_a.shape) - 1.) * randomization
+        slices_target = tuple(slice(cubicles_current // 2, None, cubicles_current) if _j == _i else slice(None, None, cubicles_current) for _j in range(dim))
+
+        _midpoints = (view_a + view_b) / 2. + (2. * numpy.random.random(view_a.shape) - 1.) * randomization
+
+        grid[slices_target] = _midpoints
+        midpoints.append(_midpoints)
+        
+    for _midpoints in midpoints:
+        # do stuff
+        pass
+
+        if cubicles_current < 2:
+            break
+
+        cubicles_current //= 2
+
+        midpoints.clear()
+
     """
 
     no_cubes_done = 0
