@@ -187,27 +187,30 @@ def _noise_cube(grid_cube: numpy.ndarray, randomization: float):
             sums.clear()
 
 
-def _set_midpoints(grid: numpy.ndarray, tile_size: int, randomization: float):
+def _set_midpoints(grid: numpy.ndarray, tile_size: int, randomization: float, _i: int, wrap: Optional[Sequence[int]] = None, recurse: bool = True):
+    if wrap is None:
+        wrap = tuple()
+
     dim = grid.ndim
-    for _i in range(dim):
-        slices_source_a = tuple(slice(None, -tile_size, tile_size) if _j == _i else slice(None, None, tile_size) for _j in range(dim))
-        view_a = grid[slices_source_a]
 
-        slices_source_b = tuple(slice(tile_size, None, tile_size) if _j == _i else slice(None, None, tile_size) for _j in range(dim))
-        view_b = grid[slices_source_b]
+    offset = int(recurse) * tile_size // 2
 
-        slices_target = tuple(slice(tile_size // 2, None, tile_size) if _j == _i else slice(None, None, tile_size) for _j in range(dim))
-        grid[slices_target] = (view_a + view_b) / 2. + (2. * numpy.random.random(view_a.shape) - 1.) * randomization
+    slices_source_a = tuple(slice(None, -tile_size, tile_size) if _j == _i else slice(None, None, tile_size) for _j in range(dim))
+    view_a = grid[slices_source_a]
 
-        for _j in range(dim):
-            if _i == _j:
-                continue
-            # midpoint connect all midpoints along all other axes
-            # separate slices_target into view_a and view_b
-            # set midpoint midpoints (recursively!)
+    slices_source_b = tuple(slice(tile_size, None, tile_size) if _j == _i else slice(None, None, tile_size) for _j in range(dim))
+    view_b = grid[slices_source_b]
 
-    if 2 < tile_size:
-        _set_midpoints(grid, tile_size // 2, randomization)
+    slices_target = tuple(slice(tile_size // 2, None, tile_size) if _j == _i else slice(None, None, tile_size) for _j in range(dim))
+    grid[slices_target] = (view_a + view_b) / 2. + (2. * numpy.random.random(view_a.shape) - 1.) * randomization
+
+    if not recurse:
+        return
+
+    for _j in range(dim):
+        if _i == _j:
+            continue
+        _set_midpoints(grid, tile_size // 2, randomization, _j, recurse=False)
 
 
 def create_noise(grid: numpy.ndarray, size_cubicles: int, randomization: float, wrap: Optional[Sequence[int]] = None) -> numpy.ndarray:
@@ -238,35 +241,12 @@ def create_noise(grid: numpy.ndarray, size_cubicles: int, randomization: float, 
     numpy.place(mask, mask < 0., scaffold)
 
     """
-    # loop until tile_size too small
-    # loop until cubes filled (over dimensions)
-    # fill scaffold
-    midpoints = []
-    cubicles_current = size_cubicles
-    for _i in range(dim):
-        slices_source_a = tuple(slice(None, -cubicles_current, cubicles_current) if _j == _i else slice(None, None, cubicles_current) for _j in range(dim))
-        view_a = grid[slices_source_a]
+    current_size = size_cubicles
+    while current_size >= 1:
+        for _d in range(dim):
+            _set_midpoints(grid, current_size, randomization, _d)
 
-        slices_source_b = tuple(slice(cubicles_current, None, cubicles_current) if _j == _i else slice(None, None, cubicles_current) for _j in range(dim))
-        view_b = grid[slices_source_b]
-
-        slices_target = tuple(slice(cubicles_current // 2, None, cubicles_current) if _j == _i else slice(None, None, cubicles_current) for _j in range(dim))
-
-        _midpoints = (view_a + view_b) / 2. + (2. * numpy.random.random(view_a.shape) - 1.) * randomization
-
-        grid[slices_target] = _midpoints
-        midpoints.append(_midpoints)
-        
-    for _midpoints in midpoints:
-        # do stuff
-        pass
-
-        if cubicles_current < 2:
-            break
-
-        cubicles_current //= 2
-
-        midpoints.clear()
+        current_size //= 2
 
     """
 
@@ -358,19 +338,25 @@ def noise_cubed():
     noised_green = numpy.full((size, size, size), -1.)
     noised_blue = numpy.full((size, size, size), -1.)
 
+    """
     embed = imread("D:/Eigene Dateien/Bilder/toilet.jpg") / 255.
     embed = embed[32:96, 32:96, :]
 
     noised_red[:, :, size // 2] = embed[:, :, 0]
     noised_green[:, :, size // 2] = embed[:, :, 1]
     noised_blue[:, :, size // 2] = embed[:, :, 2]
+    """
 
     randomization = size / 1024
     size_cubicle = size // 4
 
-    noised_red = create_noise(noised_red, size_cubicle, randomization, wrap=[0, 1, 2])
-    noised_green = create_noise(noised_green, size_cubicle, randomization, wrap=[0, 1, 2])
-    noised_blue = create_noise(noised_blue, size_cubicle, randomization, wrap=[0, 1, 2])
+    # noised_red = create_noise(noised_red, size_cubicle, randomization, wrap=[0, 1, 2])
+    # noised_green = create_noise(noised_green, size_cubicle, randomization, wrap=[0, 1, 2])
+    # noised_blue = create_noise(noised_blue, size_cubicle, randomization, wrap=[0, 1, 2])
+
+    noised_red = create_noise(noised_red, size_cubicle, randomization)
+    noised_green = create_noise(noised_green, size_cubicle, randomization)
+    noised_blue = create_noise(noised_blue, size_cubicle, randomization)
 
     array = numpy.array([noised_red, noised_green, noised_blue]).T
 
