@@ -295,7 +295,8 @@ def _rectangle(im: numpy.ndarray, x: int, y: int, size: int):
 
 def draw(array: numpy.ndarray, is_rgb: bool = False):
     if is_rgb:
-        pyplot.imshow(numpy.transpose(array, (1, 0, 2)), interpolation="gaussian")
+        # pyplot.imshow(numpy.transpose(array, (1, 0, 2)), interpolation="gaussian")
+        pyplot.imshow(numpy.transpose(array, (1, 0, 2)))
     else:
         # pyplot.imshow(numpy.transpose(array, (1, 0)), vmin=0., vmax=1., interpolation="gaussian")
         pyplot.imshow(numpy.transpose(array, (1, 0)), cmap="gist_earth", vmin=0., vmax=1.)
@@ -347,16 +348,16 @@ def noise_cubed():
     noised_blue[:, :, size // 2] = embed[:, :, 2]
     """
 
-    randomization = size / 1024
+    randomization = 0.  # size / 1024
     size_cubicle = size // 4
 
     # noised_red = create_noise(noised_red, size_cubicle, randomization, wrap=[0, 1, 2])
     # noised_green = create_noise(noised_green, size_cubicle, randomization, wrap=[0, 1, 2])
     # noised_blue = create_noise(noised_blue, size_cubicle, randomization, wrap=[0, 1, 2])
 
-    noised_red = create_noise(noised_red, size_cubicle, randomization)
-    noised_green = create_noise(noised_green, size_cubicle, randomization)
-    noised_blue = create_noise(noised_blue, size_cubicle, randomization)
+    noised_red = create_noise(noised_red, size_cubicle, randomization, wrap=[0, 1, 2])
+    noised_green = create_noise(noised_green, size_cubicle, randomization, wrap=[0, 1, 2])
+    noised_blue = create_noise(noised_blue, size_cubicle, randomization, wrap=[0, 1, 2])
 
     array = numpy.array([noised_red, noised_green, noised_blue]).T
 
