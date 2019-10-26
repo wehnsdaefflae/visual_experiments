@@ -331,13 +331,28 @@ def noise_cubed_infinite():
     pyplot.show()
 
 
+def bi_cross(grid: numpy.ndarray):
+    assert grid.ndim == 2
+    height, width = grid.shape
+    for _y, row in enumerate(grid):
+        for _x, value in enumerate(row):
+            if width // 2 - width * .05 < _x < width // 2 + width * .05 or height // 2 - height * .05 < _y < height // 2 + height * .05:
+                row[_x] = float(_x >= _y)
+
+
 def noise_cubed():
     # http://fdg2020.org/
-    size = 64
+    size = 128
 
     noised_red = numpy.full((size, size, size), -1.)
     noised_green = numpy.full((size, size, size), -1.)
     noised_blue = numpy.full((size, size, size), -1.)
+
+    duration = size // 10
+    for _i in range(duration):
+        bi_cross(noised_red[:, :, size//2 - duration // 2 + _i])
+        bi_cross(noised_green[:, :, size//2 - duration // 2 + _i])
+        bi_cross(noised_blue[:, :, size//2 - duration // 2 + _i])
 
     """
     embed = imread("D:/Eigene Dateien/Bilder/toilet.jpg") / 255.
@@ -348,16 +363,16 @@ def noise_cubed():
     noised_blue[:, :, size // 2] = embed[:, :, 2]
     """
 
-    randomization = 0.  # size / 1024
-    size_cubicle = size // 4
+    randomization = size / 2048
+    size_cubicle = size // 2
 
     # noised_red = create_noise(noised_red, size_cubicle, randomization, wrap=[0, 1, 2])
     # noised_green = create_noise(noised_green, size_cubicle, randomization, wrap=[0, 1, 2])
     # noised_blue = create_noise(noised_blue, size_cubicle, randomization, wrap=[0, 1, 2])
 
-    noised_red = create_noise(noised_red, size_cubicle, randomization, wrap=[0, 1, 2])
-    noised_green = create_noise(noised_green, size_cubicle, randomization, wrap=[0, 1, 2])
-    noised_blue = create_noise(noised_blue, size_cubicle, randomization, wrap=[0, 1, 2])
+    noised_red = create_noise(noised_red, size_cubicle, randomization, wrap=[2])
+    noised_green = create_noise(noised_green, size_cubicle, randomization, wrap=[2])
+    noised_blue = create_noise(noised_blue, size_cubicle, randomization, wrap=[2])
 
     array = numpy.array([noised_red, noised_green, noised_blue]).T
 
