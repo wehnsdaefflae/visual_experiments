@@ -371,19 +371,21 @@ def noise_cubed():
     # noised_blue = create_noise(noised_blue, size_cubicle, randomization, wrap=[0, 1, 2])
 
     noised_red = create_noise(noised_red, size_cubicle, randomization, wrap=[2])
-    noised_green = create_noise(noised_green, size_cubicle, randomization, wrap=[2])
-    noised_blue = create_noise(noised_blue, size_cubicle, randomization, wrap=[2])
+    #noised_green = create_noise(noised_green, size_cubicle, randomization, wrap=[2])
+    #noised_blue = create_noise(noised_blue, size_cubicle, randomization, wrap=[2])
 
     array = numpy.array([noised_red, noised_green, noised_blue]).T
+
+    noised_red = noised_red.T
 
     while True:
         _i = 0
 
-        for _each_layer in array:
+        for _i, _each_layer in enumerate(array):
             pyplot.clf()
             print(f"layer {_i:d}")
-            # draw(_each_layer)
-            draw(_each_layer, is_rgb=True)
+            draw(noised_red[_i])
+            # draw(array[_i], is_rgb=True)
             pyplot.pause(.05)
             _i = (_i + 1) % size
 
