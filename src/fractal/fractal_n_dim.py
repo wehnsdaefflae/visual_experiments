@@ -342,13 +342,14 @@ def bi_cross(grid: numpy.ndarray):
 
 def noise_cubed():
     # http://fdg2020.org/
-    size = 128
+    size = 16
 
     noised_red = numpy.full((size, size, size), -1.)
     noised_green = numpy.full((size, size, size), -1.)
     noised_blue = numpy.full((size, size, size), -1.)
 
-    duration = size // 10
+    duration = 1
+    # duration = size // 10
     for _i in range(duration):
         bi_cross(noised_red[:, :, size//2 - duration // 2 + _i])
         bi_cross(noised_green[:, :, size//2 - duration // 2 + _i])
@@ -363,8 +364,8 @@ def noise_cubed():
     noised_blue[:, :, size // 2] = embed[:, :, 2]
     """
 
-    randomization = size / 2048
-    size_cubicle = size // 2
+    randomization = size / 1024
+    size_cubicle = size // 4
 
     # noised_red = create_noise(noised_red, size_cubicle, randomization, wrap=[0, 1, 2])
     # noised_green = create_noise(noised_green, size_cubicle, randomization, wrap=[0, 1, 2])
@@ -387,7 +388,10 @@ def noise_cubed():
             draw(noised_red[_i])
             # draw(array[_i], is_rgb=True)
             pyplot.pause(.05)
+            # pyplot.savefig(f"frame_{_i:03d}.png")
             _i = (_i + 1) % size
+
+        break
 
     pyplot.show()
 
