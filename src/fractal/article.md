@@ -1,4 +1,4 @@
-##### embedding structure in noise
+##### embedding structure in value noise
 
 ###### image
 
@@ -12,6 +12,7 @@ perlin noise
 
 simplex noise
 
+it's fracking Value noise
 
 ###### problem with regular noise functions
 
