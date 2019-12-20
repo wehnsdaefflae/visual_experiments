@@ -39,7 +39,7 @@ def uniform_areal_segmentation(dimensionality: int) -> Generator[Tuple[CUBE, POI
 
 def g(x: int) -> float:
     if x == 0:
-        return 0
+        return 0.
     return 1. / (2. ** math.ceil(math.log(x + 1., 2.)))
 
 
