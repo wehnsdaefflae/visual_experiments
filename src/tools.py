@@ -140,7 +140,7 @@ class Timer:
         return True
 
 
-def main():
+def two_dimensional():
     generator_segmentation = uniform_areal_segmentation(2)
 
     points = []
@@ -163,6 +163,32 @@ def main():
         pass
 
     pyplot.show()
+
+
+def one_dimensional():
+    x = 0
+
+    points = []
+    while True:
+        y = distribute_circular(x)
+
+        points.append(y)
+
+        pyplot.clf()
+        pyplot.xlim((-.1, 1100))
+        pyplot.ylim((-.1, 1.1))
+
+        pyplot.scatter(range(len(points)), points, color="b", s=120., alpha=.5)
+        pyplot.pause(.005)
+
+        x += 1
+
+    pyplot.show()
+
+
+def main():
+    one_dimensional()
+    # two_dimensional()
 
 
 if __name__ == "__main__":
