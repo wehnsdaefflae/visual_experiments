@@ -1,5 +1,8 @@
+import glob
 import itertools
 import math
+import os
+import random
 import time
 from typing import Sequence, Tuple, Generator, Optional
 
@@ -186,9 +189,19 @@ def one_dimensional():
     pyplot.show()
 
 
+def bulk_rename(path_pattern: str, name: str):
+    files = glob.glob(path_pattern)
+    random.shuffle(files)
+    for _i, each_file in enumerate(files):
+        os.rename(each_file, f"{os.path.dirname(each_file)}/{_i:05d}_{name:s}")
+
+
 def main():
-    one_dimensional()
+    # one_dimensional()
     # two_dimensional()
+
+    pattern = "D:/Eigene Dateien/Downloads/photos/*.jpg"
+    bulk_rename(pattern, "portraits.jpg")
 
 
 if __name__ == "__main__":
