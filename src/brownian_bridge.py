@@ -93,9 +93,9 @@ def main():
         plot([x_range_left[5], x_range_mid[5]], [y_left, y_mid], style="k--")
         plot([x_range_mid[5], x_range_right[5]], [y_mid, y_right], style="k--")
 
-        pyplot.plot(x_range_left[5], y_left, "o-")
-        pyplot.plot(x_range_mid[5], y_mid, "o-")
-        pyplot.plot(x_range_right[5], y_right, "o-")
+        pyplot.plot(x_range_left[5], y_left, "o-", label="left")
+        pyplot.plot(x_range_mid[5], y_mid, "o-", label="mid")
+        pyplot.plot(x_range_right[5], y_right, "o-", label="right")
 
         pyplot.axvline(0.)
         pyplot.axvline(x_range_mid[0])
@@ -122,6 +122,8 @@ def main():
         plot(x_range_mid_left[5:] + x_range_mid_right[1:6], _y_mid, c="red")
 
         pyplot.plot(x_range_mid[5], sum(_y_mid) / len(_y_mid), "o-")
+
+        # pyplot.legend()
 
         pyplot.draw()
         pyplot.pause(.1)

@@ -4,7 +4,7 @@ import math
 import os
 import random
 import time
-from typing import Sequence, Tuple, Generator, Optional
+from typing import Sequence, Tuple, Generator
 
 from matplotlib import pyplot
 import arcade
@@ -60,6 +60,72 @@ def distribute_circular(x: int) -> float:
     return distribute_circular(rec_x) + g(x)
 
 
+def one_dimensional():
+    x = 0
+
+    points = []
+    while True:
+        y = distribute_circular(x)
+
+        points.append(y)
+
+        pyplot.clf()
+        pyplot.xlim((-.1, 1100))
+        pyplot.ylim((-.1, 1.1))
+
+        pyplot.scatter(range(len(points)), points, color="b", s=12., alpha=.5)
+        pyplot.pause(.005)
+
+        x += 1
+
+    pyplot.show()
+
+
+def two_dimensional():
+    generator_segmentation = uniform_areal_segmentation(2)
+
+    points = []
+    while True:
+        _space, _point = next(generator_segmentation)
+        # points.append(_point)
+        points.append(_space[0])
+        points.append(_space[1])
+        X, Y = zip(*points)
+
+        pyplot.clf()
+        pyplot.xlim((-.1, 1.1))
+        pyplot.ylim((-.1, 1.1))
+        pyplot.axhline(y=0.)
+        pyplot.axhline(y=1.)
+        pyplot.axvline(x=0.)
+        pyplot.axvline(x=1.)
+        pyplot.scatter(X, Y, color="b", s=2., alpha=1.)
+        pyplot.pause(.05)
+        pass
+
+    pyplot.show()
+
+
+def bulk_rename(path_pattern: str, name: str):
+    files = glob.glob(path_pattern)
+    random.shuffle(files)
+    for _i, each_file in enumerate(files):
+        os.rename(each_file, f"{os.path.dirname(each_file)}/{_i:05d}_{name:s}")
+
+
+def main():
+    # one_dimensional()
+    two_dimensional()
+
+    # pattern = "D:/Eigene Dateien/Downloads/photos/*.jpg"
+    # bulk_rename(pattern, "portraits.jpg")
+
+
+if __name__ == "__main__":
+    main()
+
+
+
 def trick_distribute_linear(x: int) -> float:
     if x == 0:
         return 0.
@@ -70,6 +136,28 @@ def trick_distribute_linear(x: int) -> float:
 
 def distance(pos_a: Sequence[float], pos_b: Sequence[float]) -> float:
     return math.sqrt(sum((_a - _b) ** 2. for _a, _b in zip(pos_a, pos_b)))
+
+
+
+class Timer:
+    _last_time = -1  # type: int
+
+    @staticmethod
+    def time_passed(passed_time_ms: int) -> bool:
+        if 0 >= passed_time_ms:
+            raise ValueError("Only positive millisecond values allowed.")
+
+        this_time = round(time.time() * 1000.)
+
+        if Timer._last_time < 0:
+            Timer._last_time = this_time
+            return False
+
+        elif this_time - Timer._last_time < passed_time_ms:
+            return False
+
+        Timer._last_time = this_time
+        return True
 
 
 def draw_arc_partitioned(
@@ -120,89 +208,3 @@ def draw_arc_partitioned(
             )
             # arcade.draw_text(f"{next_angle-last_angle:.4f}", x, y + (_i * 15), each_color)
             last_angle = next_angle
-
-
-class Timer:
-    _last_time = -1  # type: int
-
-    @staticmethod
-    def time_passed(passed_time_ms: int) -> bool:
-        if 0 >= passed_time_ms:
-            raise ValueError("Only positive millisecond values allowed.")
-
-        this_time = round(time.time() * 1000.)
-
-        if Timer._last_time < 0:
-            Timer._last_time = this_time
-            return False
-
-        elif this_time - Timer._last_time < passed_time_ms:
-            return False
-
-        Timer._last_time = this_time
-        return True
-
-
-def two_dimensional():
-    generator_segmentation = uniform_areal_segmentation(2)
-
-    points = []
-    while True:
-        _space, _point = next(generator_segmentation)
-        # points.append(_point)
-        points.append(_space[0])
-        points.append(_space[1])
-        X, Y = zip(*points)
-
-        pyplot.clf()
-        pyplot.xlim((-.1, 1.1))
-        pyplot.ylim((-.1, 1.1))
-        pyplot.axhline(y=0.)
-        pyplot.axhline(y=1.)
-        pyplot.axvline(x=0.)
-        pyplot.axvline(x=1.)
-        pyplot.scatter(X, Y, color="b", s=2., alpha=1.)
-        pyplot.pause(.05)
-        pass
-
-    pyplot.show()
-
-
-def one_dimensional():
-    x = 0
-
-    points = []
-    while True:
-        y = distribute_circular(x)
-
-        points.append(y)
-
-        pyplot.clf()
-        pyplot.xlim((-.1, 1100))
-        pyplot.ylim((-.1, 1.1))
-
-        pyplot.scatter(range(len(points)), points, color="b", s=120., alpha=.5)
-        pyplot.pause(.005)
-
-        x += 1
-
-    pyplot.show()
-
-
-def bulk_rename(path_pattern: str, name: str):
-    files = glob.glob(path_pattern)
-    random.shuffle(files)
-    for _i, each_file in enumerate(files):
-        os.rename(each_file, f"{os.path.dirname(each_file)}/{_i:05d}_{name:s}")
-
-
-def main():
-    # one_dimensional()
-    # two_dimensional()
-
-    pattern = "D:/Eigene Dateien/Downloads/photos/*.jpg"
-    bulk_rename(pattern, "portraits.jpg")
-
-
-if __name__ == "__main__":
-    main()

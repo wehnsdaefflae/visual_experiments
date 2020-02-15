@@ -155,8 +155,8 @@ class Map:
         self._value_min, self._value_max = value_min, value_max
         self._components = (
             # tile size, randomization, factor
-            (tile_size, self._grid_size / (4. * 2048.), 1.0),
-            # (tile_size // 4, self._grid_size / 2048., .25),
+            # (tile_size, self._grid_size / (4. * 2048.), 1.0),
+            (tile_size, .1, 1.0),
         )
 
         if grid_initial is None:
@@ -262,6 +262,19 @@ class Map:
 
         self._tile_current = _create_noise(tile_new, self._components)
 
+    def save(self):
+        grid_new = [[_v for _v in row] for row in self._tile_current]
+        for row in grid_new:
+            for _x in range(len(row)):
+                row[_x] = self._value_min + row[_x] * (self._value_max - self._value_min)
+
+        image = Image.fromarray(numpy.uint8(grid_new), mode="L")
+        # image = _render(image)
+
+        pyplot.imshow(image, cmap="Greys", vmin=self._value_min, vmax=self._value_max, aspect="equal")
+
+        pyplot.imsave("map.png", image, cmap="Greys", vmin=self._value_min, vmax=self._value_max)
+
     def draw(self):
         grid_new = [[_v for _v in row] for row in self._tile_current]
         for row in grid_new:
@@ -269,7 +282,7 @@ class Map:
                 row[_x] = self._value_min + row[_x] * (self._value_max - self._value_min)
 
         image = Image.fromarray(numpy.uint8(grid_new), mode="L")
-        image = _render(image)
+        # image = _render(image)
 
         pyplot.imshow(image, cmap="gist_earth", vmin=self._value_min, vmax=self._value_max)
 
@@ -374,7 +387,7 @@ def main():
     grid_opaque = load_picture(pic_02, channel=3, x_offset=200, y_offset=200, size=size+1)
     grid_color = [[-1. if row_transparency[_x] == 0. else _v for _x, _v in enumerate(row_color)] for row_transparency, row_color in zip(grid_opaque, grid_color)]
     # map_tiles = Map(grid_size=size + 1, tile_size=128, distance_transition=128, grid_initial=grid_color)
-    map_tiles = Map(grid_size=size + 1, tile_size=128, distance_transition=128)
+    map_tiles = Map(grid_size=size + 1, tile_size=1024, distance_transition=128)
 
     def press(event):
         if event.key == "up":
@@ -395,6 +408,9 @@ def main():
         elif event.key == "-":
             map_tiles.zoom_out()
 
+        elif event.key == "p":
+            map_tiles.save()
+
         else:
             return
 
@@ -408,5 +424,5 @@ def main():
 
 
 if __name__ == '__main__':
-    random.seed(232323423)
+    # random.seed(232323423)
     main()
