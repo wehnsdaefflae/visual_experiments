@@ -64,44 +64,48 @@ def one_dimensional():
     x = 0
 
     points = []
-    while True:
+    for _ in range(1000):
         y = distribute_circular(x)
 
         points.append(y)
 
+        """
         pyplot.clf()
         pyplot.xlim((-.1, 1100))
         pyplot.ylim((-.1, 1.1))
 
         pyplot.scatter(range(len(points)), points, color="b", s=12., alpha=.5)
         pyplot.pause(.005)
+        """
 
         x += 1
+
+    pyplot.clf()
+    pyplot.xlim((-.1, 1100))
+    pyplot.ylim((-.1, 1.1))
+
+    pyplot.scatter(range(len(points)), points, color="b", s=12., alpha=.5)
 
     pyplot.show()
 
 
 def two_dimensional():
     generator_segmentation = uniform_areal_segmentation(2)
+    fig1, ax1 = pyplot.subplots()
+    ax1.set_aspect("equal")
+    ax1.axhline(y=0.)
+    ax1.axhline(y=1.)
+    ax1.axvline(x=0.)
+    ax1.axvline(x=1.)
 
     points = []
-    while True:
+    for _ in range(1000):
         _space, _point = next(generator_segmentation)
-        # points.append(_point)
-        points.append(_space[0])
-        points.append(_space[1])
-        X, Y = zip(*points)
+        points.append(_point)
 
-        pyplot.clf()
-        pyplot.xlim((-.1, 1.1))
-        pyplot.ylim((-.1, 1.1))
-        pyplot.axhline(y=0.)
-        pyplot.axhline(y=1.)
-        pyplot.axvline(x=0.)
-        pyplot.axvline(x=1.)
-        pyplot.scatter(X, Y, color="b", s=2., alpha=1.)
-        pyplot.pause(.05)
-        pass
+    X, Y = zip(*points)
+    ax1.scatter(X, Y, color="b", s=120., alpha=.1)
+    pyplot.pause(.005)
 
     pyplot.show()
 
