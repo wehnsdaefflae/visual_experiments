@@ -45,6 +45,7 @@ def _randomize(value: float, r: float) -> float:
 def _render(image: Image) -> Image:
     rendered = image.copy()
     width, height = rendered.size
+
     _rectangle(rendered, width // 4, height // 4, width // 2)
     return rendered
 
@@ -282,7 +283,7 @@ class Map:
                 row[_x] = self._value_min + row[_x] * (self._value_max - self._value_min)
 
         image = Image.fromarray(numpy.uint8(grid_new), mode="L")
-        # image = _render(image)
+        image = _render(image)
 
         pyplot.imshow(image, cmap="gist_earth", vmin=self._value_min, vmax=self._value_max)
 

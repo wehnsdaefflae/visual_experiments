@@ -17,15 +17,8 @@ def _render(image: Image, skip: bool = False) -> Image:
     rendered = image.copy()
     width, height = rendered.size
     if not skip:
-        filtered_a = image.filter(ImageFilter.GaussianBlur(radius=2))
-        # filtered_a = filtered_a.filter(ImageFilter.CONTOUR)
-        filtered_b = image.filter(ImageFilter.GaussianBlur(radius=3))
+        filtered_a = image.filter(ImageFilter.GaussianBlur(radius=1))
         data_a = numpy.array(filtered_a)
-        data_b = numpy.array(filtered_b)
-        for row_a, row_b in zip(data_a, data_b):
-            for i, value_b in enumerate(row_b):
-                if value_b < 92:
-                    row_a[i] = 1
         rendered = Image.fromarray(data_a, mode="L")
     _rectangle(rendered, width // 4, height // 4, width // 2)
     return rendered
@@ -333,7 +326,7 @@ def main():
         else:
             return
 
-        map_tiles.draw()
+        map_tiles.draw(skip_render=False)
         fig.canvas.draw()
 
     fig, ax = pyplot.subplots()

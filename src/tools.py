@@ -11,6 +11,28 @@ import arcade
 from arcade.arcade_types import Color
 
 
+class Timer:
+    _last_time = -1  # type: int
+
+    @staticmethod
+    def time_passed(passed_time_ms: int) -> bool:
+        if 0 >= passed_time_ms:
+            raise ValueError("Only positive millisecond values allowed.")
+
+        this_time = round(time.time() * 1000.)
+
+        if Timer._last_time < 0:
+            Timer._last_time = this_time
+            return False
+
+        elif this_time - Timer._last_time < passed_time_ms:
+            return False
+
+        Timer._last_time = this_time
+        return True
+
+
+
 POINT = Tuple[float, ...]
 CUBE = Tuple[POINT, POINT]
 
@@ -114,15 +136,66 @@ def bulk_rename(path_pattern: str, name: str):
     files = glob.glob(path_pattern)
     random.shuffle(files)
     for _i, each_file in enumerate(files):
-        os.rename(each_file, f"{os.path.dirname(each_file)}/{_i:05d}_{name:s}")
+        try:
+            os.rename(each_file, f"{os.path.dirname(each_file)}/{_i:05d}_{name:s}")
+        except PermissionError:
+            print(each_file)
+
+
+def extract_attachment(file_path_eml: str, file_path_att: str):
+    import email
+
+    with open(file_path_eml, mode="r") as file_in:
+        data = file_in.read()
+        msg = email.message_from_string(data)  # entire message
+
+        if msg.is_multipart():
+            for payload in msg.get_payload():
+                bdy = payload.get_payload()
+        else:
+            bdy = msg.get_payload()
+
+        try:
+            attachment = msg.get_payload()[1]
+
+            with open(file_path_att, mode="wb") as file_out:
+                file_out.write(attachment.get_payload(decode=True))
+
+        except IndexError:
+            print(f"problem with <{file_path_eml:s}>. ignoring...")
+
+
+def extract_attachments_folder(path_folder: str, name_attachment: str):
+    assert path_folder[-1] == "/"
+
+    path_attachments = path_folder + "attachments/"
+    os.makedirs(path_attachments)
+
+    file_names = glob.glob(path_folder + "*.eml")
+
+    for _i, each_file in enumerate(file_names):
+        extract_attachment(each_file, f"{path_attachments:s}{_i:06d}_{name_attachment:s}")
+        if Timer.time_passed(2000):
+            print(f"finished {_i*100 / len(file_names):5.2f}% finished...")
+
+
+def rename_files():
+    pattern = "D:/Dropbox/Unterlagen/arbeit/Bewerbungen/Burg/portfolio/accidental/attachments/*.jpg"
+    bulk_rename(pattern, "portraits.jpg")
 
 
 def main():
     # one_dimensional()
-    two_dimensional()
+    # two_dimensional()
+    """
+    source = "D:/Eigene Dateien/Downloads/photos/thief/[phone access] - Mark (youretard@web.de) - 2013-01-08 1834.eml"
+    target = "image.jpg"
+    extract_attachment(source, target)
+    """
 
-    # pattern = "D:/Eigene Dateien/Downloads/photos/*.jpg"
-    # bulk_rename(pattern, "portraits.jpg")
+    # extract_attachments_folder("D:/Eigene Dateien/Downloads/photos/thief/", "thief.jpg")
+
+    rename_files()
 
 
 if __name__ == "__main__":
@@ -140,28 +213,6 @@ def trick_distribute_linear(x: int) -> float:
 
 def distance(pos_a: Sequence[float], pos_b: Sequence[float]) -> float:
     return math.sqrt(sum((_a - _b) ** 2. for _a, _b in zip(pos_a, pos_b)))
-
-
-
-class Timer:
-    _last_time = -1  # type: int
-
-    @staticmethod
-    def time_passed(passed_time_ms: int) -> bool:
-        if 0 >= passed_time_ms:
-            raise ValueError("Only positive millisecond values allowed.")
-
-        this_time = round(time.time() * 1000.)
-
-        if Timer._last_time < 0:
-            Timer._last_time = this_time
-            return False
-
-        elif this_time - Timer._last_time < passed_time_ms:
-            return False
-
-        Timer._last_time = this_time
-        return True
 
 
 def draw_arc_partitioned(
