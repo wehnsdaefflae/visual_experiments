@@ -382,13 +382,13 @@ def _main():
 
 def main():
     size = 1024
-    pic_01 = "D:/Eigene Dateien/Bilder/picture.jpg"
+    pic_01 = "D:/Eigene Dateien/Downloads/NicePng_galaxy-png_125876.png"
     pic_02 = "D:/Eigene Dateien/Bilder/600px-Neues_Sat._1_Logo_transparent.png"
-    grid_color = load_picture(pic_02, channel=0, x_offset=200, y_offset=200, size=size+1)
-    grid_opaque = load_picture(pic_02, channel=3, x_offset=200, y_offset=200, size=size+1)
+    grid_color = load_picture(pic_01, channel=0, x_offset=100, y_offset=200, size=size+1)
+    grid_opaque = load_picture(pic_01, channel=3, x_offset=100, y_offset=200, size=size+1)
     grid_color = [[-1. if row_transparency[_x] == 0. else _v for _x, _v in enumerate(row_color)] for row_transparency, row_color in zip(grid_opaque, grid_color)]
-    # map_tiles = Map(grid_size=size + 1, tile_size=128, distance_transition=128, grid_initial=grid_color)
-    map_tiles = Map(grid_size=size + 1, tile_size=1024, distance_transition=128)
+    map_tiles = Map(grid_size=size + 1, tile_size=256, distance_transition=128, grid_initial=grid_color)
+    # map_tiles = Map(grid_size=size + 1, tile_size=1024, distance_transition=128)
 
     def press(event):
         if event.key == "up":
