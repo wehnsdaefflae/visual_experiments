@@ -120,6 +120,7 @@ class MultiplePolynomialRegressor(Regressor[INPUT_VECTOR, float]):
 
     def output(self, in_values: INPUT_VECTOR) -> float:
         assert in_values.ndim == 1
+        # todo: dont just add all components. intertwine as products, see: https://en.wikipedia.org/wiki/Polynomial#Polynomial_functions
         return sum(_regressor.output(_in_value) for _in_value, _regressor in zip(in_values, self.regressors)) / self.input_dimensions
 
     def __str__(self) -> str:
