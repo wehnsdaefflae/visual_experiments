@@ -44,6 +44,8 @@ def polynomial_approximation(parameters_function: Sequence[float], degree: int, 
 
 
 def gradient_descent(function_external: Callable[[Sequence[float]], float], degree: int, no_arguments_function: int = 1):
+    # todo: enable gradient descent for external functions with multiple outputs (error as cartesian distance)
+
     len_p = over(no_arguments_function + degree - 1, degree - 1) + 1
     parameters = [0. for _ in range(len_p)]
     difference_gradient = .001
