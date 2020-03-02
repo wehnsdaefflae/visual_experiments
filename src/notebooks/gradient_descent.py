@@ -67,7 +67,7 @@ def gradient_descent(function_external: Callable[[Sequence[float]], float], degr
         # fit parameters
         step = gradient(lambda x: get_error(x, arguments, target), parameters, difference_gradient)
         for _i, (_p, _s) in enumerate(zip(parameters, step)):
-            parameters[_i] -= alpha * _s  # times error?
+            parameters[_i] -= alpha * _s  # times error, add momentum? (https://moodle2.cs.huji.ac.il/nu15/pluginfile.php/316969/mod_resource/content/1/adam_pres.pdf)
 
         if Timer.time_passed(2000):
             print(f"iteration: {iterations:d}\n"
