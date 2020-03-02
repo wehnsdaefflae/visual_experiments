@@ -84,6 +84,9 @@ def main():
 
     gradient_descent(f, 2, no_arguments_function=1)
 
+    # replace by adam optimizer?
+    # https://gluon.mxnet.io/chapter06_optimization/adam-scratch.html
+
 
 if __name__ == "__main__":
     main()
