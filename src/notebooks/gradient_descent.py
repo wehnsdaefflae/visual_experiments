@@ -3,6 +3,7 @@ import math
 import random
 from typing import Callable, Sequence, Iterable, Any, Tuple, TypeVar
 
+from src.notebooks.approximator import Approximator
 from src.tools import Timer, smear
 
 T = TypeVar("T")
@@ -44,8 +45,14 @@ def polynomial_approximation(parameters_function: Sequence[float], degree: int, 
     return output
 
 
-class GradientDescent:
-    def __init__(self):
+class GradientDescent(Approximator[IN]):
+    def __init__(self, input_dimensionality: int, degree: int):
+        pass
+
+    def fit(self, input_values: Sequence[float], target_value: float):
+        pass
+
+    def output(self, input_values: Sequence[float]) -> float:
         pass
 
 
