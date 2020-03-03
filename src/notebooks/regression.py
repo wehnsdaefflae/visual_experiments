@@ -9,11 +9,12 @@ from typing import Tuple, Sequence, Dict, Any, Union
 import numpy
 
 from src.notebooks.approximator import Approximator
-from src.notebooks.gradient_descent import over, accumulating_combinations_with_replacement, product
-from src.tools import smear, Timer
+from src.notebooks.gradient_descent import GradientDescent
+from src.tools import Timer
+from src.notebooks.math_tools import smear, over, accumulating_combinations_with_replacement, product
 
 
-class PolynomialRegressor(Approximator):
+class PolynomialRegressor(Approximator[float]):
     @staticmethod
     def from_dict(d: Dict[str, Any]) -> PolynomialRegressor:
         no_arguments = d["no_arguments"]
@@ -27,9 +28,6 @@ class PolynomialRegressor(Approximator):
 
     def to_dict(self) -> Dict[str, Any]:
         return self.__dict__
-
-    def __str__(self) -> str:
-        return str(self.get_parameters())
 
     def __init__(self, no_arguments: int, degree: int):     # todo: generic coupling function?
         self.no_arguments = no_arguments
@@ -58,38 +56,8 @@ class PolynomialRegressor(Approximator):
         except numpy.linalg.linalg.LinAlgError:
             return tuple(0. for _ in range(self.no_parameters))
 
-    def output(self, in_values: INPUT_VECTOR) -> float:
+    def output(self, in_values: Sequence[float]) -> float:
         parameters = self.get_parameters()
         components = [(1.,)] + list(accumulating_combinations_with_replacement(in_values, self.degree))
         assert len(parameters) == len(components)
         return sum(p * product(c) for p, c in zip(parameters, components))
-
-
-def main():
-    r = PolynomialRegressor(2, 2)
-
-    def f(x: float, y: float) -> float:
-        return 6.4 - 3.1 * x + .3 * y - 1.2 * x * x + 3.3 * x * y - 3.7 * y * y
-
-    iterations = 0
-    error_average = 0.
-    while True:
-        arguments = random.random(), random.random()
-        target = f(*arguments)
-
-        r.fit(arguments, target, iterations)
-        output = r.output(arguments)
-
-        error = (target - output) ** 2.
-        error_average = smear(error_average, error, iterations)
-
-        if Timer.time_passed(2000):
-            print(f"iterations: {iterations:d}\n"
-                  f"average error: {error_average:.2f}\n"
-                  f"parameters: {str(str(r.get_parameters())):s}\n")
-
-        iterations += 1
-
-
-if __name__ == "__main__":
-    main()

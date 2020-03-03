@@ -12,7 +12,8 @@ from matplotlib import pyplot
 from matplotlib.pyplot import imread
 from numpy.lib.stride_tricks import as_strided
 
-from src.tools import uniform_areal_segmentation, Timer
+from src.tools import Timer
+from src.notebooks.math_tools import uniform_areal_segmentation
 
 
 def is_power_two(n: int) -> bool:

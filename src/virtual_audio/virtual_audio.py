@@ -7,8 +7,7 @@ from typing import List, Optional, Sequence, Tuple, Dict, Any, TypeVar, Set
 
 import arcade
 
-from src.tools import distribute_circular, distance, draw_arc_partitioned
-
+from src.notebooks.math_tools import distribute_circular, distance, draw_arc_partitioned
 
 OBJECT_PLACED = TypeVar("OBJECT_PLACED")
 PLACEMENT = List[float]
