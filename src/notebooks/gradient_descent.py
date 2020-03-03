@@ -44,10 +44,15 @@ def polynomial_approximation(parameters_function: Sequence[float], degree: int, 
     return output
 
 
-def gradient_descent(function_external: Callable[[Sequence[float]], float], degree: int, no_arguments_function: int = 1):
-    # todo: enable gradient descent for external functions with multiple outputs (error as cartesian distance)
+class GradientDescent:
+    def __init__(self):
+        pass
 
-    len_p = over(no_arguments_function + degree - 1, degree - 1) + 1
+
+def gradient_descent(function_external: Callable[[Sequence[float]], float], degree: int, no_arguments: int = 1):
+    # todo: implement multiple input arguments
+
+    len_p = sum(over(no_arguments + d, d + 1) for d in range(degree)) + 1
     parameters = [0. for _ in range(len_p)]
     difference_gradient = .001
     alpha = .1
@@ -60,7 +65,7 @@ def gradient_descent(function_external: Callable[[Sequence[float]], float], degr
     iterations = 0
     while True:
         # input output
-        arguments = [random.random() for _ in range(no_arguments_function)]
+        arguments = [random.random() for _ in range(no_arguments)]
         target = function_external(arguments)
 
         # determine error
@@ -75,7 +80,7 @@ def gradient_descent(function_external: Callable[[Sequence[float]], float], degr
         if Timer.time_passed(2000):
             print(f"iteration: {iterations:d}\n"
                   f"average error: {error_average:.2f}\n"
-                  f"parameters: {' + '.join([f'{_p:.2f} * x^{_i:d}' for _i, _p in enumerate(parameters)]):s}\n\n")
+                  f"parameters: {str(parameters):s}\n\n")
 
         iterations += 1
 
@@ -83,9 +88,9 @@ def gradient_descent(function_external: Callable[[Sequence[float]], float], degr
 def main():
     # stackoverflow code review?
     def f(x: Sequence[float]) -> float:
-        return 3.2 + -2.7 * x[0] ** 1. + .6 * x[0] ** 2.
+        return 6.4 - 3.1 * x[0] + .3 * x[1] - 1.2 * x[0] * x[0] + 3.3 * x[0] * x[1] - 3.7 * x[1] * x[1]
 
-    gradient_descent(f, 2, no_arguments_function=1)
+    gradient_descent(f, 2, no_arguments=2)
 
     # replace by adam optimizer?
     # https://gluon.mxnet.io/chapter06_optimization/adam-scratch.html
