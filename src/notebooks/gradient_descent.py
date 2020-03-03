@@ -1,10 +1,11 @@
 import itertools
 import math
 import random
-from typing import Callable, Sequence, Iterable, Any, Tuple
+from typing import Callable, Sequence, Iterable, Any, Tuple, TypeVar
 
-from src.regression import smear
-from src.tools import Timer
+from src.tools import Timer, smear
+
+T = TypeVar("T")
 
 
 def product(values: Sequence[float]) -> float:
@@ -19,7 +20,7 @@ def over(top: int, bottom: int) -> int:
     return math.factorial(top) // (math.factorial(bottom) * math.factorial(top - bottom))
 
 
-def accumulating_combinations_with_replacement(elements: Iterable[Any], repetitions: int) -> Sequence[Tuple[Any, ...]]:
+def accumulating_combinations_with_replacement(elements: Iterable[T], repetitions: int) -> Sequence[Tuple[T, ...]]:
     yield from (c for _r in range(repetitions) for c in itertools.combinations_with_replacement(elements, _r + 1))
 
 

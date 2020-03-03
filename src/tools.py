@@ -4,11 +4,19 @@ import math
 import os
 import random
 import time
-from typing import Sequence, Tuple, Generator
+from typing import Sequence, Tuple, Generator, Iterable
 
 from matplotlib import pyplot
 import arcade
 from arcade.arcade_types import Color
+
+
+def smear(average: float, value: float, inertia: int) -> float:
+    return (inertia * average + value) / (inertia + 1.)
+
+
+def get_min_max(sequence: Iterable[float]) -> Tuple[float, float]:
+    return min(sequence), max(sequence)
 
 
 class Timer:
