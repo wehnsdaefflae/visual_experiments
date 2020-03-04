@@ -1,7 +1,7 @@
 # coding=utf-8
 from __future__ import annotations
 
-from typing import Tuple, Sequence, Dict, Any, Callable
+from typing import Sequence, Dict, Any, Callable
 
 # TODO: implement polynomial regressor for rational reinforcement learning
 
@@ -35,7 +35,7 @@ class RegressorCustom(Approximator[float]):
         for _i, _component in enumerate(components):
             self.cov_matrix[_i] = smear(self.cov_matrix[_i], out_value * _component, drag)
 
-    def get_parameters(self) -> Tuple[float, ...]:
+    def get_parameters(self) -> Sequence[float]:
         try:
             # gaussian elimination
             return tuple(numpy.linalg.solve(self.var_matrix, self.cov_matrix))
@@ -45,9 +45,7 @@ class RegressorCustom(Approximator[float]):
 
     def output(self, in_values: Sequence[float]) -> float:
         parameters = self.get_parameters()
-        components = tuple(f_a(in_values) for f_a in self.addends)
-        assert len(parameters) == len(components)
-        return sum(p * c for p, c in zip(parameters, components))
+        return sum(p * f_a(in_values) for p, f_a in zip(parameters, self.addends))
 
 
 class PolynomialRegressor(RegressorCustom):
@@ -80,4 +78,3 @@ class PolynomialRegressor(RegressorCustom):
 
     def __init__(self, no_arguments: int, degree: int):
         super().__init__(PolynomialRegressor.polynomial_addends(no_arguments, degree))
-

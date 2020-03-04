@@ -4,14 +4,12 @@ from typing import TypeVar, Sequence, Dict, Any, Generic
 
 from src.tools import JsonSerializable
 
-T = TypeVar("T")
-
 OUTPUT = TypeVar("OUTPUT", Sequence[float], float)
 
 
 class Approximator(JsonSerializable, Generic[OUTPUT]):
     @staticmethod
-    def from_dict(d: Dict[str, Any]) -> T:
+    def from_dict(d: Dict[str, Any]) -> Approximator:
         raise NotImplementedError()
 
     def to_dict(self) -> Dict[str, Any]:
