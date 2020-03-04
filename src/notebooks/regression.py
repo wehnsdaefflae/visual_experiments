@@ -14,10 +14,10 @@ from src.notebooks.math_tools import smear, accumulating_combinations_with_repla
 class RegressorCustom(Approximator[float]):
     @staticmethod
     def from_dict(d: Dict[str, Any]) -> RegressorCustom:
-        raise NotImplementedError()
+        pass
 
     def to_dict(self) -> Dict[str, Any]:
-        raise NotImplementedError()
+        pass
 
     def __init__(self, addends: Sequence[Callable[[Sequence[float]], float]]):
         self.addends = addends
@@ -49,13 +49,6 @@ class RegressorCustom(Approximator[float]):
 
 
 class PolynomialRegressor(RegressorCustom):
-    @staticmethod
-    def from_dict(d: Dict[str, Any]) -> PolynomialRegressor:
-        raise NotImplementedError()
-
-    def to_dict(self) -> Dict[str, Any]:
-        return self.__dict__
-
     @staticmethod
     def polynomial_addends(no_arguments: int, degree: int) -> Sequence[Callable[[Sequence[float]], float]]:
         def create_product(indices: Sequence[int]) -> Callable[[Sequence[float]], float]:
