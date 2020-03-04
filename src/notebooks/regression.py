@@ -41,7 +41,7 @@ class RegressorCustom(Approximator[float]):
             return tuple(numpy.linalg.solve(self.var_matrix, self.cov_matrix))
 
         except numpy.linalg.linalg.LinAlgError:
-            return tuple(0. for _ in self.cov_matrix)
+            return tuple(0. for _ in self.addends)
 
     def output(self, in_values: Sequence[float]) -> float:
         parameters = self.get_parameters()
