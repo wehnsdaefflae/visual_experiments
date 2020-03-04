@@ -27,13 +27,13 @@ class RegressorCustom(Approximator[float]):
     def fit(self, in_values: Sequence[float], out_value: float, drag: int):
         assert drag >= 0
         components = tuple(f_a(in_values) for f_a in self.addends)
-        for _i, _component_a in enumerate(components):
-            _var_row = self.var_matrix[_i]
-            for _j, _component_b in enumerate(components):
-                _var_row[_j] = smear(_var_row[_j], _component_a * _component_b, drag)
+        for i, component_a in enumerate(components):
+            var_row = self.var_matrix[i]
+            for j, component_b in enumerate(components):
+                var_row[j] = smear(var_row[j], component_a * component_b, drag)
 
-        for _i, _component in enumerate(components):
-            self.cov_matrix[_i] = smear(self.cov_matrix[_i], out_value * _component, drag)
+        for i, component in enumerate(components):
+            self.cov_matrix[i] = smear(self.cov_matrix[i], out_value * component, drag)
 
     def get_parameters(self) -> Sequence[float]:
         try:
