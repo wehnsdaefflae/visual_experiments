@@ -29,11 +29,10 @@ class RegressorCustom(Approximator[float]):
         components = tuple(f_a(in_values) for f_a in self.addends)
         for i, component_a in enumerate(components):
             var_row = self.var_matrix[i]
-            for j, component_b in enumerate(components):
+            for j, component_b in enumerate(components):    # unnecessary double calculation
                 var_row[j] = smear(var_row[j], component_a * component_b, drag)
 
-        for i, component in enumerate(components):
-            self.cov_matrix[i] = smear(self.cov_matrix[i], out_value * component, drag)
+            self.cov_matrix[i] = smear(self.cov_matrix[i], out_value * component_a, drag)
 
     def get_parameters(self) -> Sequence[float]:
         try:
