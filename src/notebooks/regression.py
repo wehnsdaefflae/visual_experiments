@@ -1,52 +1,39 @@
 # coding=utf-8
 from __future__ import annotations
 
-import random
-from typing import Tuple, Sequence, Dict, Any, Union
+from typing import Tuple, Sequence, Dict, Any, Callable
 
 # TODO: implement polynomial regressor for rational reinforcement learning
 
 import numpy
 
 from src.notebooks.approximator import Approximator
-from src.notebooks.gradient_descent import GradientDescent
-from src.tools import Timer
-from src.notebooks.math_tools import smear, over, accumulating_combinations_with_replacement, product
+from src.notebooks.math_tools import smear, accumulating_combinations_with_replacement, product
 
 
-class PolynomialRegressor(Approximator[float]):
+class RegressorCustomAddends(Approximator[float]):
     @staticmethod
-    def from_dict(d: Dict[str, Any]) -> PolynomialRegressor:
-        no_arguments = d["no_arguments"]
-        degree = d["degree"]
-        r = PolynomialRegressor(no_arguments, degree)
-        var_matrix = d["var_matrix"]
-        cov_matrix = d["cov_matrix"]
-        r.var_matrix = var_matrix
-        r.cov_matrix = cov_matrix
-        return r
+    def from_dict(d: Dict[str, Any]) -> RegressorCustomAddends:
+        raise NotImplementedError()
 
     def to_dict(self) -> Dict[str, Any]:
         return self.__dict__
 
-    def __init__(self, no_arguments: int, degree: int):     # todo: generic coupling function?
-        self.no_arguments = no_arguments
-        self.degree = degree
-        self.no_parameters = sum(over(no_arguments + d, d + 1) for d in range(degree)) + 1
-        self.var_matrix = tuple([0. for _ in range(self.no_parameters)] for _ in range(self.no_parameters))
-        self.cov_matrix = [0. for _ in range(self.no_parameters)]
+    def __init__(self, addends: Sequence[Callable[[Sequence[float]], float]]):
+        self.addends = addends
+        self.var_matrix = tuple([0. for _ in addends] for _ in addends)
+        self.cov_matrix = [0. for _ in addends]
 
     def fit(self, in_values: Sequence[float], out_value: float, drag: int):
         assert drag >= 0
-        components = [(1.,)] + list(accumulating_combinations_with_replacement(in_values, self.degree))
-
+        components = tuple(f_a(in_values) for f_a in self.addends)
         for _i, _component_a in enumerate(components):
             _var_row = self.var_matrix[_i]
             for _j, _component_b in enumerate(components):
-                _var_row[_j] = smear(_var_row[_j], product(_component_a) * product(_component_b), drag)
+                _var_row[_j] = smear(_var_row[_j], _component_a * _component_b, drag)
 
         for _i, _component in enumerate(components):
-            self.cov_matrix[_i] = smear(self.cov_matrix[_i], out_value * product(_component), drag)
+            self.cov_matrix[_i] = smear(self.cov_matrix[_i], out_value * _component, drag)
 
     def get_parameters(self) -> Tuple[float, ...]:
         try:
@@ -54,10 +41,43 @@ class PolynomialRegressor(Approximator[float]):
             return tuple(numpy.linalg.solve(self.var_matrix, self.cov_matrix))
 
         except numpy.linalg.linalg.LinAlgError:
-            return tuple(0. for _ in range(self.no_parameters))
+            return tuple(0. for _ in self.cov_matrix)
 
     def output(self, in_values: Sequence[float]) -> float:
         parameters = self.get_parameters()
-        components = [(1.,)] + list(accumulating_combinations_with_replacement(in_values, self.degree))
+        components = tuple(f_a(in_values) for f_a in self.addends)
         assert len(parameters) == len(components)
-        return sum(p * product(c) for p, c in zip(parameters, components))
+        return sum(p * c for p, c in zip(parameters, components))
+
+
+class PolynomialRegressor(RegressorCustomAddends):
+    @staticmethod
+    def from_dict(d: Dict[str, Any]) -> PolynomialRegressor:
+        raise NotImplementedError()
+
+    def to_dict(self) -> Dict[str, Any]:
+        return self.__dict__
+
+    @staticmethod
+    def polynomial_addends(no_arguments: int, degree: int) -> Sequence[Callable[[Sequence[float]], float]]:
+        def create_product(indices: Sequence[int]) -> Callable[[Sequence[float]], float]:
+            def product_select(x: Sequence[float]) -> float:
+                l_x = len(x)
+                assert no_arguments == l_x
+                factors = []
+                for i in indices:
+                    assert i < l_x
+                    factors.append(x[i])
+                return product(factors)
+
+            return product_select
+
+        addends = [lambda _: 1.]
+        for j in accumulating_combinations_with_replacement(range(no_arguments), degree):
+            addends.append(create_product(j))
+
+        return addends
+
+    def __init__(self, no_arguments: int, degree: int):
+        super().__init__(PolynomialRegressor.polynomial_addends(no_arguments, degree))
+

@@ -5,7 +5,7 @@ from matplotlib import pyplot
 
 from src.notebooks.gradient_descent import GradientDescent
 from src.notebooks.math_tools import smear, accumulating_combinations_with_replacement, product, over
-from src.notebooks.regression import PolynomialRegressor
+from src.notebooks.regression import PolynomialRegressor, RegressorCustomAddends
 from src.tools import Timer
 
 
@@ -28,7 +28,8 @@ def main():
     colors = pyplot.rcParams['axes.prop_cycle'].by_key()['color']
     pyplot.ion()
     fig, ax = pyplot.subplots()
-    ax.plot([f([x / 100.]) for x in range(int(range_arguments[0]) * 100, int(range_arguments[-1]) * 100)], label="real", color="green")
+    xs = [x / 100. for x in range(int(range_arguments[0]) * 100, int(range_arguments[-1]) * 100)]
+    ax.plot(xs, [f([x]) for x in xs], label="real", color="green")
     ax.set_xlim(range_arguments)
 
     degree_approximation = 2
@@ -53,7 +54,7 @@ def main():
             errors_average[i] = smear(errors_average[i], error, iterations)
             # errors_all[i].append(errors_all[i][-1] + error)
 
-            ax.scatter([arguments[0]], [output], label=approximator.__class__.__name__, color=colors[i])
+            ax.scatter([arguments[0]], [output], label=approximator.__class__.__name__, color=colors[i], alpha=.5)
             if iterations < 1:
                 fig.legend()
             # pyplot.clf()
