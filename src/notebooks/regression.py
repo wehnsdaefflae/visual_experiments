@@ -11,13 +11,13 @@ from src.notebooks.approximator import Approximator
 from src.notebooks.math_tools import smear, accumulating_combinations_with_replacement, product
 
 
-class RegressorCustomAddends(Approximator[float]):
+class RegressorCustom(Approximator[float]):
     @staticmethod
-    def from_dict(d: Dict[str, Any]) -> RegressorCustomAddends:
+    def from_dict(d: Dict[str, Any]) -> RegressorCustom:
         raise NotImplementedError()
 
     def to_dict(self) -> Dict[str, Any]:
-        return self.__dict__
+        raise NotImplementedError()
 
     def __init__(self, addends: Sequence[Callable[[Sequence[float]], float]]):
         self.addends = addends
@@ -50,7 +50,7 @@ class RegressorCustomAddends(Approximator[float]):
         return sum(p * c for p, c in zip(parameters, components))
 
 
-class PolynomialRegressor(RegressorCustomAddends):
+class PolynomialRegressor(RegressorCustom):
     @staticmethod
     def from_dict(d: Dict[str, Any]) -> PolynomialRegressor:
         raise NotImplementedError()
