@@ -60,12 +60,12 @@ if __name__ == "__main__":
 
     # Read input data
     for i in range(0, n):
-        line = map(Fraction, raw_input().split(" "))
+        line = map(Fraction, input().split(" "))
         for j, el in enumerate(line):
             A[i][j] = el
-    raw_input()
+    input()
 
-    line = raw_input().split(" ")
+    line = input().split(" ")
     lastLine = map(Fraction, line)
     for i in range(0, n):
         A[i][n] = lastLine[i]
