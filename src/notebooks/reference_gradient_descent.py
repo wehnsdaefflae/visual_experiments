@@ -1,6 +1,7 @@
 import math
 from typing import Sequence
 
+# alternative: https://docs.microsoft.com/de-de/archive/msdn-magazine/2015/march/test-run-gradient-descent-training-using-csharp
 
 # method to provide function g(x).
 def g(x: Sequence[float]) -> float:
