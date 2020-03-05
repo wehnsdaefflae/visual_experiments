@@ -12,24 +12,15 @@ from src.tools import Timer
 
 def main():
     range_arguments = -10., 10.
-    no_arguments = 2
-
-    degree_real = 3
-    no_parameters_real = sum(over(no_arguments + d, d + 1) for d in range(degree_real)) + 1
-    parameters_real = [random.uniform(*range_arguments) for _ in range(no_parameters_real)]
 
     def f_squared(x: Sequence[float]) -> float:
-        assert len(x) == 2
-        return +3.5 + -0.2 * x[0] + +7.1 * x[1] + -2.8 * x[0] * x[0] + +6.1 * x[0] * x[1] + -5.2 * x[1] * x[1]
-
-    def f(x: Sequence[float]) -> float:
-        components = accumulating_combinations_with_replacement(x, degree_real)
-        return parameters_real[0] + sum(parameters_real[_i + 1] * product(component) for _i, component in enumerate(components))
+        # return +3.5 + -0.2 * x[0] + +7.1 * x[1] + -2.8 * x[0] * x[0] + +6.1 * x[0] * x[1] + -5.2 * x[1] * x[1]
+        return +3.5 + -0.2 * x[0] + -2.8 * x[0] * x[0]
 
     degree_approximation = 2
     approximators = (
         # PolynomialRegressor(no_arguments, degree_approximation),
-        GradientDescent(no_arguments, degree_approximation),
+        GradientDescent(1, degree_approximation),
     )
 
     iterations = 0
@@ -37,7 +28,7 @@ def main():
     errors_all = [[0.] for _ in approximators]
 
     while iterations < 100000:
-        arguments = [random.uniform(*range_arguments) for _ in range(no_arguments)]
+        arguments = [random.uniform(*range_arguments) for _ in range(1)]
         target = f_squared(arguments)
 
         for i, approximator in enumerate(approximators):
