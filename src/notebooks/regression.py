@@ -29,8 +29,15 @@ class RegressorCustom(Approximator[float]):
         components = tuple(f_a(in_values) for f_a in self.addends)
         for i, component_a in enumerate(components):
             var_row = self.var_matrix[i]
-            for j, component_b in enumerate(components):    # unnecessary double calculation
-                var_row[j] = smear(var_row[j], component_a * component_b, drag)
+            for j in range(i + 1):
+                component_b = components[j]
+                value = smear(var_row[j], component_a * component_b, drag)
+                var_row[j] = value
+
+                if j == i:
+                    continue
+                var_row_other = self.var_matrix[j]
+                var_row_other[i] = value
 
             self.cov_matrix[i] = smear(self.cov_matrix[i], out_value * component_a, drag)
 

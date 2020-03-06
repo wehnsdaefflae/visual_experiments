@@ -19,8 +19,8 @@ def main():
 
     degree_approximation = 2
     approximators = (
-        # PolynomialRegressor(no_arguments, degree_approximation),
-        GradientDescent(1, degree_approximation),
+        PolynomialRegressor(1, degree_approximation),
+        # GradientDescent(1, degree_approximation),
     )
 
     iterations = 0
