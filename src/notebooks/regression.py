@@ -22,11 +22,12 @@ class RegressorCustom(Approximator[float]):
     def __init__(self, addends: Sequence[Callable[[Sequence[float]], float]]):
         self.addends = addends
         self.var_matrix = tuple([0. for _ in addends] for _ in addends)
-        self.cov_matrix = [0. for _ in addends]
+        self.cov_vector = [0. for _ in addends]
 
     def fit(self, in_values: Sequence[float], out_value: float, drag: int):
         assert drag >= 0
         components = tuple(f_a(in_values) for f_a in self.addends)
+
         for i, component_a in enumerate(components):
             var_row = self.var_matrix[i]
             for j in range(i + 1):
@@ -39,12 +40,12 @@ class RegressorCustom(Approximator[float]):
                 var_row_other = self.var_matrix[j]
                 var_row_other[i] = value
 
-            self.cov_matrix[i] = smear(self.cov_matrix[i], out_value * component_a, drag)
+            self.cov_vector[i] = smear(self.cov_vector[i], out_value * component_a, drag)
 
     def get_parameters(self) -> Sequence[float]:
         try:
             # gaussian elimination
-            return tuple(numpy.linalg.solve(self.var_matrix, self.cov_matrix))
+            return tuple(numpy.linalg.solve(self.var_matrix, self.cov_vector))
 
         except numpy.linalg.linalg.LinAlgError:
             return tuple(0. for _ in self.addends)
