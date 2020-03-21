@@ -55,11 +55,6 @@ class RegressorCustom(Approximator[float]):
         return sum(p * f_a(in_values) for p, f_a in zip(parameters, self.addends))
 
 
-class RecurrentRegressor(RegressorCustom):
-    # TODO: memory input and output for values at t-1: random only when wrong
-    raise NotImplementedError()
-
-
 class PolynomialRegressor(RegressorCustom):
     @staticmethod
     def polynomial_addends(no_arguments: int, degree: int) -> Sequence[Callable[[Sequence[float]], float]]:

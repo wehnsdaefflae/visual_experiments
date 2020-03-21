@@ -15,7 +15,8 @@ def main():
 
     def f_squared(x: Sequence[float]) -> float:
         # return +3.5 + -0.2 * x[0] + +7.1 * x[1] + -2.8 * x[0] * x[0] + +6.1 * x[0] * x[1] + -5.2 * x[1] * x[1]
-        return +3.5 + -0.2 * x[0] + -2.8 * x[0] * x[0]
+        # return +3.5 + -0.2 * x[0] + -2.8 * x[0] * x[0]
+        return random.random()
 
     degree_approximation = 2
     approximators = (
